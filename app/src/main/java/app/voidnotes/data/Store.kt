@@ -223,8 +223,8 @@ class Store private constructor(private val context: Context) {
     fun newPhotoFile(): File = attachment("${newId()}.jpg")
 
     /** Copies a file from disk (e.g. an unpacked Notion export) into the attachments. */
-    fun importLocalFile(source: File): StoredFile {
-        val name = source.name
+    fun importLocalFile(source: File, displayName: String = source.name): StoredFile {
+        val name = displayName
         val ext = name.substringAfterLast('.', "").lowercase().takeIf { it.isNotEmpty() && it.length <= 8 } ?: "bin"
         val stored = "${newId()}.$ext"
         source.copyTo(attachment(stored), overwrite = true)

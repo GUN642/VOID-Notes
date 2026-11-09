@@ -32,6 +32,15 @@ class NotionImport(private val store: Store, private val workDir: File, private 
         }
         // First pass: an id for every Markdown file, so links between pages can be resolved.
         root.walkTopDown().filter { it.isFile && it.name.endsWith(".md", true) }.forEach { idPage[it.canonicalPath] = newId() }
+        // Databases: "X.csv" and "X_all.csv" are the same database.
+        root.walkTopDown().filter { it.isFile && it.name.endsWith(".csv", true) }.forEach { f ->
+            val key = csvKey(f)
+            // A full-page database comes as "X.md" plus "X_all.csv": both are the same page.
+            val md = File(f.parentFile, f.name.replace(Regex("(_all)?\\.csv$", RegexOption.IGNORE_CASE), ".md"))
+            val id = idPage[md.canonicalPath] ?: idPage.getOrPut(key) { newId() }
+            idPage[key] = id
+            idPage[f.canonicalPath] = id
+        }
         if (idPage.isEmpty() && root.walkTopDown().none { it.name.endsWith(".csv", true) }) {
             error("Keine Notion-Seiten gefunden – bitte den Export im Format „Markdown & CSV“ wählen")
         }
@@ -72,11 +81,26 @@ class NotionImport(private val store: Store, private val workDir: File, private 
 
     private fun clean(name: String) = name.replace(idSuffix, "").trim()
 
-    /** Folder that belongs to a page or database file ("Name 1a2b….md" → "Name 1a2b…" or "Name"). */
+    private fun csvKey(f: File) = "csv:" + File(f.parentFile, f.name.replace(Regex("_all\\.csv$", RegexOption.IGNORE_CASE), ".csv")).canonicalPath
+
+    private val consumed = HashSet<String>()
+
+    /**
+     * Folder that belongs to a page or database file: "Name 1a2b…cdef.md" → "Name 1a2b…cdef", "Name 1a2b-cdef"
+     * (newer exports, when names repeat) or "Name". Every folder is used only once.
+     */
     private fun folderFor(file: File): File? {
-        val base = file.name.substringBeforeLast('.')
+        val base = file.name.substringBeforeLast('.').replace(Regex("_all$", RegexOption.IGNORE_CASE), "")
         val dir = file.parentFile ?: return null
-        return listOf(File(dir, base), File(dir, clean(base))).firstOrNull { it.isDirectory }
+        val id = Regex("([0-9a-f]{32})$").find(base)?.value
+        val candidates = listOfNotNull(
+            File(dir, base),
+            id?.let { File(dir, clean(base) + " " + it.take(4) + "-" + it.takeLast(4)) },
+            File(dir, clean(base)),
+        )
+        val f = candidates.firstOrNull { it.isDirectory && it.canonicalPath !in consumed } ?: return null
+        consumed += f.canonicalPath
+        return f
     }
 
     /** Imports all pages, databases and plain folders in [dir]; returns the ids of the pages created there. */
@@ -92,14 +116,18 @@ class NotionImport(private val store: Store, private val workDir: File, private 
         // Databases: "X_all.csv" is the complete version of "X.csv".
         val csvs = entries.filter { it.isFile && it.name.endsWith(".csv", true) }
         val names = csvs.map { it.name }.toSet()
-        csvs.filterNot { c -> !c.name.endsWith("_all.csv", true) && c.name.removeSuffix(".csv") + "_all.csv" in names }.forEach { csv ->
+        val mdIds = entries.filter { it.isFile && it.name.endsWith(".md", true) }.mapNotNull { idPage[it.canonicalPath] }.toSet()
+        csvs.filterNot { c -> !c.name.endsWith("_all.csv", true) && c.name.removeSuffix(".csv") + "_all.csv" in names }
+            .filterNot { c -> idPage[c.canonicalPath] in mdIds }
+            .forEach { csv ->
             val plain = File(csv.parentFile, csv.name.replace(Regex("_all\\.csv$", RegexOption.IGNORE_CASE), ".csv"))
             val folder = folderFor(plain)
             folder?.let { used += it.canonicalPath }
             created += importDatabase(csv, folder, parentId)
         }
         // Remaining folders: containers like "Private & Shared" – their pages belong to the same parent.
-        entries.filter { it.isDirectory && it.canonicalPath !in used }.forEach { d ->
+        entries.filter { it.isDirectory && it.canonicalPath !in used && it.canonicalPath !in consumed }.forEach { d ->
+            consumed += d.canonicalPath
             if (d.walkTopDown().any { it.isFile && (it.name.endsWith(".md", true) || it.name.endsWith(".csv", true)) }) {
                 created += importDir(d, parentId)
             }
@@ -137,7 +165,7 @@ class NotionImport(private val store: Store, private val workDir: File, private 
     }
 
     private fun importDatabase(csv: File, folder: File?, parentId: String?): String {
-        val id = newId()
+        val id = idPage[csv.canonicalPath] ?: newId()
         val title = clean(csv.name.removeSuffix(".csv").removeSuffix("_all"))
         progress("Importiere Datenbank: $title")
         val rows = parseCsv(runCatching { csv.readText() }.getOrDefault("").removePrefix("﻿"))
@@ -202,8 +230,29 @@ class NotionImport(private val store: Store, private val workDir: File, private 
         return f.takeIf { it.exists() }
     }
 
+    /** Newer exports keep attachments without file extension – guess it from the first bytes. */
+    private fun displayName(f: File): String {
+        if (f.name.contains('.')) return f.name
+        val head = ByteArray(16)
+        val n = runCatching { f.inputStream().use { it.read(head) } }.getOrDefault(0)
+        if (n < 4) return f.name
+        val s = String(head, 0, n, Charsets.ISO_8859_1)
+        val ext = when {
+            head[0] == 0xFF.toByte() && head[1] == 0xD8.toByte() -> "jpg"
+            s.startsWith("\u0089PNG") -> "png"
+            s.startsWith("GIF8") -> "gif"
+            s.startsWith("%PDF") -> "pdf"
+            s.startsWith("RIFF") && s.substring(8).startsWith("WEBP") -> "webp"
+            s.length >= 12 && s.substring(4, 8) == "ftyp" && s.substring(8, 12).startsWith("hei") -> "heic"
+            s.length >= 12 && s.substring(4, 8) == "ftyp" -> "mp4"
+            s.startsWith("PK") -> "zip"
+            else -> return f.name
+        }
+        return "${f.name}.$ext"
+    }
+
     private fun attach(f: File, image: Boolean): Block? = runCatching {
-        val s = store.importLocalFile(f)
+        val s = store.importLocalFile(f, displayName(f))
         attachments++
         Block(type = if (image || s.isImage) BlockType.IMAGE else BlockType.FILE, file = s.file, fileName = s.name, mime = s.mime, size = s.size)
     }.getOrNull()
@@ -217,6 +266,14 @@ class NotionImport(private val store: Store, private val workDir: File, private 
             else -> label
         }
     }.replace("<br>", " ").replace("&nbsp;", " ")
+
+    private fun propertyFiles(line: String, dir: File): Pair<String, List<File>>? {
+        val m = Regex("^([^:]{1,40}): (.+)$").find(line) ?: return null
+        val files = m.groupValues[2].split(", ").map { it.trim() }
+        if (files.isEmpty() || files.any { !it.contains('/') }) return null
+        val resolved = files.map { resolve(dir, it) ?: return null }
+        return if (resolved.all { it.isFile }) m.groupValues[1] to resolved else null
+    }
 
     private fun convert(markdown: String, dir: File): Pair<String, List<Block>> {
         val lines = markdown.replace("\r\n", "\n").lines()
@@ -301,7 +358,8 @@ class NotionImport(private val store: Store, private val workDir: File, private 
                     out += when {
                         f != null && f.name.endsWith(".md", true) && idPage[f.canonicalPath] != null ->
                             Block(type = BlockType.PAGE, pageId = idPage[f.canonicalPath], level = extraLevel)
-                        f != null && f.name.endsWith(".csv", true) -> Block(text = m.groupValues[1], level = extraLevel)
+                        f != null && f.name.endsWith(".csv", true) && idPage[f.canonicalPath] != null ->
+                            Block(type = BlockType.PAGE, pageId = idPage[f.canonicalPath], level = extraLevel)
                         f != null && f.isFile -> attach(f, image = false)?.copy(level = extraLevel) ?: Block(text = m.groupValues[1])
                         else -> Block(text = inline(t, dir), level = level)
                     }
@@ -317,6 +375,12 @@ class NotionImport(private val store: Store, private val workDir: File, private 
                 Regex("^\\d+[.)] ").containsMatchIn(t) ->
                     out += Block(type = BlockType.NUMBERED, text = inline(t.substringAfter(' '), dir), level = level)
                 t.startsWith(">") -> out += Block(type = BlockType.QUOTE, text = inline(t.removePrefix(">").trim(), dir), level = extraLevel)
+                propertyFiles(t, dir) != null -> {
+                    // Database property with files, e.g. "Rechnung: ../attachments/…/Rechnung.pdf"
+                    val (key, files) = propertyFiles(t, dir)!!
+                    out += Block(text = "**$key:**", level = level)
+                    files.forEach { f -> attach(f, image = false)?.let { out += it.copy(level = level) } }
+                }
                 else -> {
                     val text = inline(t.replace(Regex("</?(div|span|p)[^>]*>"), ""), dir)
                     val prev = out.lastOrNull()
