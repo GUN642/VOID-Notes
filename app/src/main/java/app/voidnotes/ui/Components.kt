@@ -112,7 +112,7 @@ fun Pill(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifie
         modifier
             .clip(RoundedCornerShape(50))
             .background(if (selected) c.text else Color.Transparent)
-            .border(1.dp, if (selected) c.text else c.divider, RoundedCornerShape(50))
+            .border(1.2.dp, if (selected) c.text else c.textMuted.copy(alpha = 0.55f), RoundedCornerShape(50))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

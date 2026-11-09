@@ -41,6 +41,15 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Print
+import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -325,88 +334,205 @@ private val themeSwatches = mapOf(
     ThemeMode.WHITE to Color(0xFFFFFFFF),
 )
 
-@OptIn(ExperimentalLayoutApi::class)
+/** Categories of the settings, each on its own page (side by side on wide screens). */
+enum class SettingsSection(val title: String, val subtitle: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    LOOK("Darstellung", "Design, Akzentfarbe, Schrift, Seitenbreite", Icons.Outlined.Palette),
+    EDITOR("Schreiben", "Neue Seiten, Autokorrektur, Startseite", Icons.Outlined.EditNote),
+    BACKUP("Sicherung", "Google-Sicherung, automatische ZIP", Icons.Outlined.CloudUpload),
+    SHARE("Teilen & Zusammenarbeit", "Links, Firebase-Datenbank", Icons.Outlined.Link),
+    IMPORT("Import", "Notion, Markdown", Icons.Outlined.Download),
+    PDF("PDF & Drucken", "Symbol, Fußzeile", Icons.Outlined.Print),
+    UPDATES("Updates", "Version, Changelog", Icons.Outlined.SystemUpdate),
+    ABOUT("Über", "VOID Notes, Lizenzen", Icons.Outlined.Info),
+}
+
 @Composable
 fun SettingsScreen(vm: NotesViewModel, s: AppSettings, wide: Boolean) {
     val c = VoidTheme.colors
-    val actions = LocalActions.current
-    ScreenFrame(vm, "Einstellungen", wide) {
-        item {
-            Centered {
-                Column {
-                    Group("Design")
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ThemeMode.entries.forEach { m -> ThemeTile(m, s.theme == m) { vm.editSettings { it.copy(theme = m) } } }
+    val section = vm.settingsSection
+    androidx.activity.compose.BackHandler(enabled = !wide && section != null) { vm.settingsSection = null }
+    Box(Modifier.fillMaxSize()) {
+        DotGrid(Modifier.fillMaxSize(), spacing = 24.dp)
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            Column(Modifier.padding(horizontal = if (wide) 40.dp else 16.dp)) {
+                if (!wide && section == null) TabBar(vm, compact = false, modifier = Modifier.padding(top = 12.dp))
+                Row(Modifier.fillMaxWidth().padding(top = if (wide) 32.dp else 18.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (!wide) {
+                        RoundButton(Icons.AutoMirrored.Outlined.ArrowBack, "Zurück", {
+                            if (section != null) vm.settingsSection = null else vm.back()
+                        }, size = 40.dp)
+                        Spacer(Modifier.width(6.dp))
                     }
-                    Group("Akzentfarbe")
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Accent.entries.forEach { a ->
-                            val color = if (a == Accent.MONO) c.text else Color(a.argb)
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    Modifier.size(44.dp).clip(CircleShape)
-                                        .border(2.dp, if (a == s.accent) c.text else Color.Transparent, CircleShape)
-                                        .padding(5.dp).clip(CircleShape).background(color)
-                                        .clickable { vm.editSettings { it.copy(accent = a) } },
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Label(a.label, color = if (a == s.accent) c.text else c.textMuted)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Toggle("Dot-Matrix-Überschriften", "Pixelschrift im Nothing-Stil", s.dotHeadings) { v -> vm.editSettings { it.copy(dotHeadings = v) } }
-                    Toggle("Punkteraster", "Dezentes Punktmuster im Hintergrund", s.dotGrid) { v -> vm.editSettings { it.copy(dotGrid = v) } }
-
-                    Group("Schreiben")
-                    Label("Schriftgröße")
-                    Spacer(Modifier.height(8.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextSize.entries.forEach { t -> Pill(t.label, s.textSize == t, { vm.editSettings { it.copy(textSize = t) } }) }
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    Label("Seitenbreite (DeX & Tablet)")
-                    Spacer(Modifier.height(8.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PageWidth.entries.forEach { w -> Pill(w.label, s.pageWidth == w, { vm.editSettings { it.copy(pageWidth = w) } }) }
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    Label("Neue Seite")
-                    Spacer(Modifier.height(8.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        NewPageMode.entries.forEach { m -> Pill(m.label, s.newPage == m, { vm.editSettings { it.copy(newPage = m) } }) }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Toggle("Autokorrektur", "Rechtschreibvorschläge der Tastatur in Texten", s.spellCheck) { v -> vm.editSettings { it.copy(spellCheck = v) } }
-                    Toggle("Zuletzt verwendet", "Kürzlich geöffnete Seiten auf der Startseite", s.showRecent) { v -> vm.editSettings { it.copy(showRecent = v) } }
-                    Toggle("Seitenleiste", "Seitenbaum links auf großen Bildschirmen (Strg+\\)", s.sidebar) { v -> vm.editSettings { it.copy(sidebar = v) } }
-
-                    Group("PDF & Druck")
-                    Toggle("Symbol im Titel", "Emoji der Seite vor dem Titel drucken", s.pdfIncludeIcon) { v -> vm.editSettings { it.copy(pdfIncludeIcon = v) } }
-                    Toggle("Fußzeile", "Seitentitel und Seitenzahl unten auf jeder Seite", s.pdfPageNumbers) { v -> vm.editSettings { it.copy(pdfPageNumbers = v) } }
-
-                    Group("Import")
-                    NotionSection(vm)
-                    Spacer(Modifier.height(12.dp))
-                    Pill("Markdown-Dateien importieren", selected = false, onClick = { actions.importMarkdown() })
-
-                    Group("Sicherung")
-                    BackupSection(vm, s)
-
-                    Group("Teilen & Zusammenarbeit")
-                    ShareSection(vm, s)
-
-                    Group("Updates")
-                    UpdateSection(vm, s)
-
-                    Group("Über")
-                    Text("VOID Notes ${BuildConfig.VERSION_NAME}", color = c.text, style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "Notizen im Nothing-Stil. Schriften: Doto & Space Mono (SIL Open Font License).",
-                        color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Headline(if (!wide && section != null) section.title else "Einstellungen", Modifier.weight(1f), size = if (wide) 40 else 30)
                 }
             }
+            if (wide) {
+                val current = section ?: SettingsSection.LOOK
+                Row(Modifier.weight(1f).padding(horizontal = 40.dp)) {
+                    LazyColumn(Modifier.width(300.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(SettingsSection.entries) { sec -> SectionRow(sec, sec == current) { vm.settingsSection = sec } }
+                        item { Spacer(Modifier.height(24.dp)) }
+                    }
+                    Spacer(Modifier.width(28.dp))
+                    LazyColumn(Modifier.weight(1f).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                        item { Column(Modifier.widthIn(max = 760.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) { SectionContent(current, vm, s) } }
+                        item { Spacer(Modifier.height(40.dp).navigationBarsPadding()) }
+                    }
+                }
+            } else if (section == null) {
+                LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(SettingsSection.entries) { sec -> SectionRow(sec, false) { vm.settingsSection = sec } }
+                    item {
+                        Label("VOID Notes ${BuildConfig.VERSION_NAME}", Modifier.padding(top = 12.dp, start = 4.dp).navigationBarsPadding())
+                    }
+                }
+            } else {
+                LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    item { Column(verticalArrangement = Arrangement.spacedBy(18.dp)) { SectionContent(section, vm, s) } }
+                    item { Spacer(Modifier.navigationBarsPadding()) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionRow(sec: SettingsSection, selected: Boolean, onClick: () -> Unit) {
+    val c = VoidTheme.colors
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .background(if (selected) c.surfaceHigh else c.surface)
+            .border(if (selected) 1.5.dp else 1.dp, if (selected) c.accent else c.divider, RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(40.dp).clip(CircleShape).background(if (selected) c.accent else c.surfaceHigh), contentAlignment = Alignment.Center) {
+            Icon(sec.icon, null, Modifier.size(21.dp), tint = if (selected) c.onAccent else c.text)
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(sec.title, color = c.text, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
+            Text(sec.subtitle, color = c.textMuted, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = c.textMuted)
+    }
+}
+
+/** A titled group of settings on a raised card. */
+@Composable
+fun SettingsCard(title: String? = null, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    val c = VoidTheme.colors
+    Column {
+        if (title != null) {
+            Label(title, Modifier.padding(start = 6.dp, bottom = 8.dp), color = c.text)
+        }
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.surface)
+                .border(1.dp, c.divider, RoundedCornerShape(20.dp)).padding(horizontal = 16.dp, vertical = 14.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun CardDivider() {
+    Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(1.dp).background(VoidTheme.colors.divider))
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(text, color = VoidTheme.colors.textMuted, style = MaterialTheme.typography.bodyMedium)
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SectionContent(section: SettingsSection, vm: NotesViewModel, s: AppSettings) {
+    val c = VoidTheme.colors
+    val actions = LocalActions.current
+    when (section) {
+        SettingsSection.LOOK -> {
+            SettingsCard("Design") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ThemeMode.entries.forEach { m -> ThemeTile(m, s.theme == m) { vm.editSettings { it.copy(theme = m) } } }
+                }
+            }
+            SettingsCard("Akzentfarbe") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Accent.entries.forEach { a ->
+                        val color = if (a == Accent.MONO) c.text else Color(a.argb)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                Modifier.size(44.dp).clip(CircleShape)
+                                    .border(2.dp, if (a == s.accent) c.text else Color.Transparent, CircleShape)
+                                    .padding(5.dp).clip(CircleShape).background(color)
+                                    .clickable { vm.editSettings { it.copy(accent = a) } },
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Label(a.label, color = if (a == s.accent) c.text else c.textMuted)
+                        }
+                    }
+                }
+            }
+            SettingsCard("Schrift & Breite") {
+                Text("Schriftgröße", color = c.text, style = MaterialTheme.typography.bodyLarge)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextSize.entries.forEach { t -> Pill(t.label, s.textSize == t, { vm.editSettings { it.copy(textSize = t) } }) }
+                }
+                Spacer(Modifier.height(10.dp))
+                CardDivider()
+                Spacer(Modifier.height(10.dp))
+                Text("Seitenbreite (DeX & Tablet)", color = c.text, style = MaterialTheme.typography.bodyLarge)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PageWidth.entries.forEach { w -> Pill(w.label, s.pageWidth == w, { vm.editSettings { it.copy(pageWidth = w) } }) }
+                }
+            }
+            SettingsCard("Nothing-Stil") {
+                Toggle("Dot-Matrix-Überschriften", "Pixelschrift für Überschriften", s.dotHeadings) { v -> vm.editSettings { it.copy(dotHeadings = v) } }
+                CardDivider()
+                Toggle("Punkteraster", "Punktmuster im Hintergrund", s.dotGrid) { v -> vm.editSettings { it.copy(dotGrid = v) } }
+            }
+        }
+        SettingsSection.EDITOR -> {
+            SettingsCard("Neue Seite") {
+                Hint("Was passiert beim Stift / Strg+N?")
+                Spacer(Modifier.height(10.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NewPageMode.entries.forEach { m -> Pill(m.label, s.newPage == m, { vm.editSettings { it.copy(newPage = m) } }) }
+                }
+            }
+            SettingsCard("Editor") {
+                Toggle("Autokorrektur", "Rechtschreibvorschläge der Tastatur", s.spellCheck) { v -> vm.editSettings { it.copy(spellCheck = v) } }
+            }
+            SettingsCard("Startseite & Seitenleiste") {
+                Toggle("Zuletzt verwendet", "Kürzlich geöffnete Seiten auf der Startseite", s.showRecent) { v -> vm.editSettings { it.copy(showRecent = v) } }
+                CardDivider()
+                Toggle("Seitenleiste", "Seitenbaum links auf großen Bildschirmen (Strg+\\)", s.sidebar) { v -> vm.editSettings { it.copy(sidebar = v) } }
+            }
+        }
+        SettingsSection.BACKUP -> BackupSection(vm, s)
+        SettingsSection.SHARE -> ShareSection(vm, s)
+        SettingsSection.IMPORT -> {
+            SettingsCard("Notion") { NotionSection(vm) }
+            SettingsCard("Markdown") {
+                Hint("Einzelne .md-Dateien aus anderen Programmen (z. B. Obsidian). Jede Datei wird eine Seite – ohne Unterseiten und Anhänge.")
+                Spacer(Modifier.height(10.dp))
+                Pill("Markdown-Dateien wählen", selected = false, onClick = { actions.importMarkdown() })
+            }
+        }
+        SettingsSection.PDF -> SettingsCard("PDF-Export & Drucken") {
+            Toggle("Symbol im Titel", "Emoji der Seite vor dem Titel drucken", s.pdfIncludeIcon) { v -> vm.editSettings { it.copy(pdfIncludeIcon = v) } }
+            CardDivider()
+            Toggle("Fußzeile", "Seitentitel und Seitenzahl auf jeder Seite", s.pdfPageNumbers) { v -> vm.editSettings { it.copy(pdfPageNumbers = v) } }
+        }
+        SettingsSection.UPDATES -> UpdateSection(vm, s)
+        SettingsSection.ABOUT -> SettingsCard("VOID Notes") {
+            Text("Version ${BuildConfig.VERSION_NAME}", color = c.text, style = MaterialTheme.typography.bodyLarge)
+            Spacer(Modifier.height(4.dp))
+            Hint("Notizen im Nothing-Stil. Alles bleibt auf dem Gerät, geteilte Seiten sind Ende-zu-Ende verschlüsselt.")
+            Spacer(Modifier.height(8.dp))
+            Hint("Schriften: Doto & Space Mono (SIL Open Font License).")
         }
     }
 }
@@ -416,6 +542,7 @@ private fun UpdateSection(vm: NotesViewModel, s: AppSettings) {
     val c = VoidTheme.colors
     LaunchedEffect(Unit) { if (vm.releases.isEmpty()) vm.checkForUpdates(manual = false) }
     val update = vm.availableUpdate
+    SettingsCard("Version") {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("Installiert: ${BuildConfig.VERSION_NAME}", color = c.text, style = MaterialTheme.typography.bodyLarge)
@@ -442,9 +569,11 @@ private fun UpdateSection(vm: NotesViewModel, s: AppSettings) {
         }
     }
     Spacer(Modifier.height(8.dp))
+    CardDivider()
     Toggle("Beim Start prüfen", "Beim Öffnen der App nach neuen Versionen suchen", s.autoUpdateCheck) { v -> vm.editSettings { it.copy(autoUpdateCheck = v) } }
+    }
 
-    Group("Changelog")
+    SettingsCard("Changelog") {
     if (vm.releases.isEmpty()) {
         Text(
             if (vm.checkingUpdate) "Wird geladen …" else "Changelog nicht verfügbar – Internetverbindung prüfen.",
@@ -476,6 +605,7 @@ private fun UpdateSection(vm: NotesViewModel, s: AppSettings) {
         TextButton(onClick = { expanded = !expanded }) {
             Text(if (expanded) "WENIGER" else "ALLE ${vm.releases.size} VERSIONEN", style = MaterialTheme.typography.labelLarge, color = c.accent)
         }
+    }
     }
 }
 
@@ -563,44 +693,47 @@ private fun BackupSection(vm: NotesViewModel, s: AppSettings) {
     val c = VoidTheme.colors
     val actions = LocalActions.current
     val context = androidx.compose.ui.platform.LocalContext.current
-    Text("Google-Sicherung", color = c.text, style = MaterialTheme.typography.bodyLarge)
-    Text(
-        "Seiten, Vorlagen und Einstellungen sichert Android automatisch in deinem Google-Konto (etwa einmal am Tag, " +
-            "wenn das Gerät lädt und im WLAN ist) und stellt sie nach einer Neuinstallation oder auf einem neuen Handy wieder her. " +
-            "Voraussetzung: Einstellungen → Google → Sicherung ist eingeschaltet. Anhänge sind wegen der Größenbegrenzung " +
-            "von 25 MB nicht dabei – dafür gibt es die automatische Sicherung in einen Ordner.",
-        color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
-    )
-    Spacer(Modifier.height(16.dp))
-    Text("Automatische Sicherung in Ordner", color = c.text, style = MaterialTheme.typography.bodyLarge)
-    Text(
-        "Komplette Sicherung mit Anhängen als ZIP, automatisch beim Verlassen der App (höchstens alle 10 Minuten, nur nach Änderungen). " +
-            "Die neuesten ${app.voidnotes.data.AutoBackup.KEEP} bleiben erhalten. Tipp: einen Ordner in Google Drive wählen " +
-            "(im Ordnerauswahl-Menü links „Drive“) – dann liegt die Sicherung in der Cloud.",
-        color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
-    )
-    Spacer(Modifier.height(10.dp))
-    if (s.autoBackupUri.isNotBlank()) {
-        val name = remember(s.autoBackupUri) { app.voidnotes.data.AutoBackup.folderName(context, s.autoBackupUri) }
-        Label("Ordner: $name", color = c.text)
-        Label(if (s.autoBackupLast > 0) "Letzte Sicherung: ${formatDate(s.autoBackupLast)}" else "Noch keine Sicherung")
-        Spacer(Modifier.height(8.dp))
-    }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (s.autoBackupUri.isBlank()) {
-            Pill("Ordner wählen", selected = true, onClick = { actions.pickBackupFolder() })
-        } else {
-            Pill(if (vm.backupRunning) "Sichert …" else "Jetzt sichern", selected = true, onClick = { vm.autoBackup(force = true) })
-            Pill("Anderer Ordner", selected = false, onClick = { actions.pickBackupFolder() })
-            Pill("Ausschalten", selected = false, onClick = { vm.clearBackupFolder() })
+    SettingsCard("Automatische Sicherung in Ordner") {
+        Hint(
+            "Komplette Sicherung mit allen Anhängen als ZIP – automatisch beim Verlassen der App (höchstens alle 10 Minuten, " +
+                "nur nach Änderungen). Die neuesten ${app.voidnotes.data.AutoBackup.KEEP} bleiben erhalten. " +
+                "Tipp: einen Ordner in Google Drive wählen (in der Ordnerauswahl links „Drive“).",
+        )
+        Spacer(Modifier.height(12.dp))
+        if (s.autoBackupUri.isNotBlank()) {
+            val name = remember(s.autoBackupUri) { app.voidnotes.data.AutoBackup.folderName(context, s.autoBackupUri) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(Color(0xFF34C759)))
+                Spacer(Modifier.width(8.dp))
+                Text("Aktiv · Ordner „$name“", color = c.text, style = MaterialTheme.typography.bodyLarge)
+            }
+            Label(if (s.autoBackupLast > 0) "Letzte Sicherung: ${formatDate(s.autoBackupLast)}" else "Noch keine Sicherung", Modifier.padding(start = 16.dp))
+            Spacer(Modifier.height(12.dp))
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (s.autoBackupUri.isBlank()) {
+                Pill("Ordner wählen", selected = true, onClick = { actions.pickBackupFolder() })
+            } else {
+                Pill(if (vm.backupRunning) "Sichert …" else "Jetzt sichern", selected = true, onClick = { vm.autoBackup(force = true) })
+                Pill("Anderer Ordner", selected = false, onClick = { actions.pickBackupFolder() })
+                Pill("Ausschalten", selected = false, onClick = { vm.clearBackupFolder() })
+            }
         }
     }
-    Spacer(Modifier.height(16.dp))
-    Text("Manuell", color = c.text, style = MaterialTheme.typography.bodyLarge)
-    Spacer(Modifier.height(8.dp))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Pill("Sicherung erstellen", selected = false, onClick = { actions.backup() })
-        Pill("Wiederherstellen", selected = false, onClick = { actions.restore() })
+    SettingsCard("Google-Sicherung") {
+        Hint(
+            "Seiten, Vorlagen und Einstellungen sichert Android automatisch in deinem Google-Konto (etwa einmal täglich beim " +
+                "Laden im WLAN) und stellt sie nach einer Neuinstallation wieder her. Voraussetzung: Android-Einstellungen → Google → " +
+                "Sicherung ist an. Anhänge sind wegen der 25-MB-Grenze nicht dabei – dafür die Ordner-Sicherung oben nutzen.",
+        )
+    }
+    SettingsCard("Manuell") {
+        Hint("Eine Sicherung als ZIP speichern oder eine Sicherung zurückspielen (gleichnamige Seiten werden ersetzt).")
+        Spacer(Modifier.height(10.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Pill("Sicherung erstellen", selected = false, onClick = { actions.backup() })
+            Pill("Wiederherstellen", selected = false, onClick = { actions.restore() })
+        }
     }
 }
 
@@ -612,6 +745,7 @@ private fun ShareSection(vm: NotesViewModel, s: AppSettings) {
     var url by remember { mutableStateOf(s.syncUrl) }
     var guide by remember { mutableStateOf(false) }
     val active = vm.syncHost()
+    SettingsCard("Freigabe per Link") {
     Text(
         "Seiten lassen sich über ⋮ → „Per Link teilen“ freigeben. Alle mit dem Link bearbeiten live mit; der Inhalt ist " +
             "Ende-zu-Ende verschlüsselt. Für den Abgleich braucht es eine eigene, kostenlose Firebase-Datenbank – " +
@@ -662,6 +796,7 @@ private fun ShareSection(vm: NotesViewModel, s: AppSettings) {
         )
         Spacer(Modifier.height(8.dp))
         Pill("Regeln kopieren", selected = false, onClick = { actions.launcher.copy("Firebase-Regeln", app.voidnotes.data.FIREBASE_RULES); vm.message("Regeln kopiert") })
+    }
     }
 }
 

@@ -102,6 +102,8 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
     var newPageParent by mutableStateOf<String?>(null)
     var searchQuery by mutableStateOf("")
     var dialog by mutableStateOf<Dialog?>(null)
+    /** Open category of the settings (phone: null = overview). */
+    var settingsSection by mutableStateOf<SettingsSection?>(null)
 
     private val _events = Channel<UiEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -134,6 +136,7 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
         }
         // Tabs replace each other instead of piling up.
         val tabs = setOf(Screen.Search, Screen.Templates, Screen.Trash, Screen.Settings)
+        if (s == Screen.Settings && screen != Screen.Settings) settingsSection = null
         stack = if (s in tabs) listOf(Screen.Home, s) else (stack.filterNot { it == s } + s)
         prepareEditor()
     }

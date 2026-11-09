@@ -74,10 +74,10 @@ object VoidTheme {
 }
 
 private fun palette(mode: ThemeMode, systemDark: Boolean): Triple<Color, Color, Color> = when (mode) {
-    ThemeMode.BLACK -> Triple(Color(0xFF000000), Color(0xFF0E0E0E), Color(0xFF1A1A1A))
-    ThemeMode.GRAPHITE -> Triple(Color(0xFF1C1C1E), Color(0xFF242427), Color(0xFF2E2E32))
-    ThemeMode.PAPER -> Triple(Color(0xFFF7F6F3), Color(0xFFFFFFFF), Color(0xFFEDECE8))
-    ThemeMode.WHITE -> Triple(Color(0xFFFFFFFF), Color(0xFFF5F5F5), Color(0xFFEAEAEA))
+    ThemeMode.BLACK -> Triple(Color(0xFF000000), Color(0xFF141414), Color(0xFF262626))
+    ThemeMode.GRAPHITE -> Triple(Color(0xFF1C1C1E), Color(0xFF2A2A2D), Color(0xFF3A3A3E))
+    ThemeMode.PAPER -> Triple(Color(0xFFEFEEEA), Color(0xFFFFFFFF), Color(0xFFE2E1DC))
+    ThemeMode.WHITE -> Triple(Color(0xFFFFFFFF), Color(0xFFF2F2F2), Color(0xFFE3E3E3))
     ThemeMode.SYSTEM -> if (systemDark) palette(ThemeMode.BLACK, true) else palette(ThemeMode.PAPER, false)
 }
 
@@ -97,14 +97,14 @@ fun VoidNotesTheme(
         var accentColor = Color(accent.argb)
         if (accent == Accent.MONO && !dark) accentColor = Color(0xFF111111)
         val onAccent = if (accentColor.luminance() > 0.55f) Color.Black else Color.White
-        val text = if (dark) Color(0xFFF2F2F2) else Color(0xFF111111)
-        val muted = if (dark) Color(0xFF8C8C8C) else Color(0xFF6B6B6B)
-        val divider = if (dark) Color.White.copy(alpha = 0.09f) else Color.Black.copy(alpha = 0.09f)
+        val text = if (dark) Color(0xFFFFFFFF) else Color(0xFF0A0A0A)
+        val muted = if (dark) Color(0xFFADADAD) else Color(0xFF4F4F4F)
+        val divider = if (dark) Color.White.copy(alpha = 0.18f) else Color.Black.copy(alpha = 0.16f)
         colors = VoidColors(
             background = bg, surface = surface, surfaceHigh = high, text = text, textMuted = muted,
             divider = divider, accent = accentColor, onAccent = onAccent,
             selection = accentColor.copy(alpha = if (dark) 0.20f else 0.14f),
-            dot = if (dark) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.10f),
+            dot = if (dark) Color.White.copy(alpha = 0.13f) else Color.Black.copy(alpha = 0.12f),
             isDark = dark,
         )
         scheme = if (dark) {
@@ -145,7 +145,7 @@ fun VoidNotesTheme(
         titleMedium = base.titleMedium,
         bodyLarge = base.bodyLarge,
         bodyMedium = base.bodyMedium,
-        labelSmall = TextStyle(fontFamily = MonoFont, fontSize = 11.sp, letterSpacing = 0.6.sp),
+        labelSmall = TextStyle(fontFamily = MonoFont, fontSize = 12.sp, letterSpacing = 0.7.sp),
         labelMedium = TextStyle(fontFamily = MonoFont, fontSize = 12.sp, letterSpacing = 0.8.sp),
         labelLarge = base.labelLarge.copy(fontFamily = MonoFont, letterSpacing = 1.sp),
     )
