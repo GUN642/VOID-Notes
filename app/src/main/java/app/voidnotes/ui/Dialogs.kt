@@ -279,7 +279,7 @@ fun ShareDialog(vm: NotesViewModel, page: Page, onDismiss: () -> Unit) {
     VoidDialog("Teilen", onDismiss, "Link teilen", { actions.launcher.shareText("VOID Notes: ${page.displayTitle}", info.link) }, dismissText = "Schließen") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                "Jeder mit diesem Link kann die Seite live mitlesen und mitbearbeiten. Der Inhalt ist Ende-zu-Ende verschlüsselt – " +
+                "Jeder mit diesem Link kann die Seite live mitlesen und mitbearbeiten – in VOID Notes oder direkt im Browser, ohne App. Der Inhalt ist Ende-zu-Ende verschlüsselt – " +
                     "der Schlüssel steckt nur im Link. Teile ihn also nur mit Personen, denen du vertraust.",
                 color = c.text, style = MaterialTheme.typography.bodyMedium,
             )

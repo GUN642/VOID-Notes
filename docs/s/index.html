@@ -2,49 +2,584 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>VOID Notes – geteilte Notiz</title>
+<meta name="referrer" content="no-referrer">
+<title>VOID Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@700;900&family=Space+Mono&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#000; --fg:#f2f2f2; --muted:#8c8c8c; --line:rgba(255,255,255,.12); --accent:#d71921; }
-  @media (prefers-color-scheme: light) { :root { --bg:#f7f6f3; --fg:#111; --muted:#6b6b6b; --line:rgba(0,0,0,.12); } }
+  :root {
+    --bg:#000; --surface:#0e0e0e; --high:#1a1a1a; --fg:#f2f2f2; --muted:#8c8c8c;
+    --line:rgba(255,255,255,.09); --dot:rgba(255,255,255,.10); --accent:#d71921; --ok:#34c759;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f7f6f3; --surface:#fff; --high:#edece8; --fg:#111; --muted:#6b6b6b;
+            --line:rgba(0,0,0,.09); --dot:rgba(0,0,0,.10); color-scheme: light; }
+  }
   * { box-sizing:border-box; }
-  body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif;
-         background-image:radial-gradient(var(--line) 1.2px, transparent 1.3px); background-size:22px 22px;
-         display:flex; align-items:flex-end; }
-  main { padding:32px 24px 48px; max-width:560px; }
-  h1 { font:700 56px/1 ui-monospace, monospace; letter-spacing:2px; margin:0; }
-  h1 span { color:var(--accent); }
-  .label { font:12px ui-monospace, monospace; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin:6px 0 28px; }
-  p { margin:0 0 24px; }
-  a.btn { display:inline-block; padding:16px 28px; border-radius:999px; background:var(--accent); color:#fff; text-decoration:none;
-          font:700 13px ui-monospace, monospace; letter-spacing:1px; text-transform:uppercase; margin:0 8px 12px 0; }
-  a.ghost { background:transparent; color:var(--fg); border:1px solid var(--line); }
+  html, body { margin:0; background:var(--bg); color:var(--fg); }
+  body { font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height:100vh;
+         background-image:radial-gradient(var(--dot) 1.2px, transparent 1.3px); background-size:24px 24px; }
+  .mono { font-family:"Space Mono", ui-monospace, monospace; }
+  header { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px; padding:12px 16px;
+           background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  .logo { font-family:Doto, ui-monospace, monospace; font-weight:900; font-size:26px; letter-spacing:1px; white-space:nowrap; }
+  .logo span { color:var(--accent); }
+  .status { display:flex; align-items:center; gap:8px; font:11px "Space Mono", monospace; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); }
+  .dotx { width:8px; height:8px; border-radius:50%; background:var(--muted); }
+  .dotx.on { background:var(--ok); } .dotx.err { background:var(--accent); }
+  .spacer { flex:1; }
+  a.pill, button.pill { font:700 11px "Space Mono", monospace; letter-spacing:1px; text-transform:uppercase; padding:9px 14px;
+           border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--fg); text-decoration:none; cursor:pointer; white-space:nowrap; }
+  a.pill.solid { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+  main { max-width:800px; margin:0 auto; padding:28px 16px 40vh; }
+  #icon { font-size:52px; line-height:1.2; padding-left:26px; }
+  #title { font-size:34px; line-height:1.25; font-weight:700; outline:none; margin:4px 0 6px 0; padding-left:30px; }
+  #title:empty::before { content:"Ohne Titel"; color:var(--muted); opacity:.5; }
+  .meta { font:11px "Space Mono", monospace; letter-spacing:.6px; text-transform:uppercase; color:var(--muted); padding-left:30px; margin-bottom:14px; }
+  .blk { position:relative; display:flex; align-items:flex-start; padding:1px 0; }
+  .blk .gut { width:30px; flex:none; display:flex; justify-content:center; padding-top:1px; color:var(--muted); }
+  .blk .mk { width:28px; flex:none; display:flex; justify-content:center; align-items:flex-start; padding-top:0; }
+  .txt { flex:1; min-width:0; outline:none; white-space:pre-wrap; word-break:break-word; min-height:1.5em; }
+  .txt:focus:empty::before, .blk[data-type]:not([data-type="TEXT"]) .txt:empty::before { content:attr(data-hint); color:var(--muted); opacity:.55; }
+  .blk[data-type="H1"] { margin-top:18px; } .blk[data-type="H1"] .txt { font-size:28px; line-height:1.3; font-weight:700; }
+  .blk[data-type="H2"] { margin-top:14px; } .blk[data-type="H2"] .txt { font-size:22px; line-height:1.35; font-weight:600; }
+  .blk[data-type="H3"] { margin-top:10px; } .blk[data-type="H3"] .txt { font-size:18.5px; line-height:1.4; font-weight:600; }
+  .bullet { width:6px; height:6px; border-radius:50%; background:var(--fg); margin-top:.62em; }
+  .num { font:13px "Space Mono", monospace; color:var(--muted); padding-top:.15em; }
+  .check { width:20px; height:20px; border-radius:6px; border:1.5px solid var(--muted); margin-top:2px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; }
+  .check.on { background:var(--accent); border-color:var(--accent); }
+  .blk.done .txt { color:var(--muted); text-decoration:line-through; }
+  .tog { cursor:pointer; user-select:none; font-size:15px; padding-top:1px; }
+  .quote { border-left:3px solid var(--fg); padding-left:14px; font-style:italic; font-size:17px; }
+  .callout { display:flex; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px; flex:1; margin:4px 0; }
+  .code { flex:1; background:var(--high); border-radius:12px; padding:12px 14px; font:13.5px/1.55 "Space Mono", monospace; margin:4px 0; overflow-x:auto; }
+  .divider { flex:1; height:26px; background-image:radial-gradient(color-mix(in srgb, var(--muted) 60%, transparent) 1px, transparent 1.2px); background-size:10px 10px; background-position:0 50%; background-repeat:repeat-x; }
+  .img { flex:1; margin:6px 0; border-radius:14px; overflow:hidden; background:var(--surface); min-height:60px; display:flex; align-items:center; justify-content:center; color:var(--muted); }
+  .img img { width:100%; display:block; max-height:520px; object-fit:contain; }
+  .file { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid var(--line); background:var(--surface); border-radius:14px; color:var(--fg); text-decoration:none; max-width:560px; flex:1; margin:4px 0; }
+  .file small { display:block; color:var(--muted); font:11px "Space Mono", monospace; }
+  .del { position:absolute; right:-34px; top:2px; opacity:0; border:none; background:none; color:var(--muted); cursor:pointer; font-size:16px; }
+  .blk:hover .del { opacity:.7; }
+  b, strong { font-weight:700; } code { font-family:"Space Mono", monospace; background:var(--high); padding:0 4px; border-radius:4px; font-size:.9em; }
+  mark { background:color-mix(in srgb, var(--accent) 30%, transparent); color:inherit; }
+  .txt a { color:var(--accent); }
+  #more { height:160px; cursor:text; }
+  #toolbar { position:fixed; left:0; right:0; bottom:0; display:none; gap:4px; padding:6px 10px calc(6px + env(safe-area-inset-bottom));
+             background:var(--surface); border-top:1px solid var(--line); overflow-x:auto; z-index:6; }
+  #toolbar button { flex:none; min-width:42px; height:40px; border-radius:999px; border:none; background:transparent; color:var(--fg); font:600 15px system-ui; cursor:pointer; }
+  #toolbar button:active { background:var(--high); }
+  .msg { max-width:560px; margin:18vh auto 0; padding:0 24px; }
+  .msg h1 { font-family:Doto, monospace; font-weight:900; font-size:56px; margin:0; letter-spacing:2px; }
+  .msg h1 span { color:var(--accent); }
   .err { color:var(--accent); }
+  @media (max-width: 600px) { .del { display:none; } #title { font-size:28px; } .hide-sm { display:none; } }
 </style>
 </head>
 <body>
-<main>
-  <h1>VOID<span>.</span></h1>
-  <div class="label">Notes · geteilte Notiz</div>
-  <p id="text">Jemand hat eine Notiz mit dir geteilt. Öffne sie in VOID Notes, um sie zu lesen und gemeinsam zu bearbeiten.
-     Der Inhalt ist verschlüsselt – der Schlüssel steckt nur in diesem Link und wird nicht an den Server gesendet.</p>
-  <a class="btn" id="open" href="#">In VOID Notes öffnen</a>
-  <a class="btn ghost" href="https://github.com/GUN642/VOID-Notes/releases">App herunterladen</a>
+<header>
+  <div class="logo">VOID<span>.</span></div>
+  <div class="status"><div class="dotx" id="dot"></div><span id="state">Verbinde …</span></div>
+  <div class="spacer"></div>
+  <a class="pill hide-sm" href="https://github.com/GUN642/VOID-Notes/releases">App laden</a>
+  <a class="pill solid" id="openApp" href="#">In App öffnen</a>
+</header>
+<main id="main">
+  <div id="icon"></div>
+  <div id="title" contenteditable="plaintext-only" spellcheck="true"></div>
+  <div class="meta" id="meta">Geteilte Notiz · Ende-zu-Ende verschlüsselt</div>
+  <div id="blocks"></div>
+  <div id="more" title="Hier klicken, um weiterzuschreiben"></div>
 </main>
+<div id="toolbar">
+  <button data-t="TODO" title="Checkbox">☑</button>
+  <button data-t="BULLET" title="Aufzählung">•</button>
+  <button data-t="H2" title="Überschrift">H</button>
+  <button data-w="**" title="Fett"><b>B</b></button>
+  <button data-w="*" title="Kursiv"><i>I</i></button>
+  <button data-w="~~" title="Durchgestrichen"><s>S</s></button>
+  <button data-w="==" title="Markieren">▍</button>
+  <button data-a="in" title="Einrücken">⇥</button>
+  <button data-a="out" title="Ausrücken">⇤</button>
+  <button data-a="del" title="Block löschen">🗑</button>
+</div>
 <script>
-  var d = location.hash.replace(/^#/, "");
-  var open = document.getElementById("open");
-  if (!/^[a-z0-9.-]+\/[A-Za-z0-9_-]{16,}\/[A-Za-z0-9_-]{40,}$/.test(d)) {
-    document.getElementById("text").innerHTML = '<span class="err">Dieser Link ist unvollständig.</span> Bitte den ganzen Link kopieren.';
-    open.style.display = "none";
-  } else {
-    var q = "s?d=" + encodeURIComponent(d);
-    var android = /Android/i.test(navigator.userAgent);
-    open.href = android
-      ? "intent://" + q + "#Intent;scheme=voidnotes;package=app.voidnotes;end"
-      : "voidnotes://" + q;
+"use strict";
+// ---------------------------------------------------------------- link & crypto
+const parts = decodeURIComponent(location.hash.replace(/^#/, "")).split("/");
+const [HOST, NOTE, KEY] = parts;
+const valid = parts.length === 3 && /^[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)$/.test(HOST) &&
+  /^[A-Za-z0-9_-]{16,}$/.test(NOTE) && /^[A-Za-z0-9_-]{40,}$/.test(KEY);
+const BASE = `https://${HOST}/notes/${NOTE}`;
+const $ = (id) => document.getElementById(id);
+
+function fail(html) {
+  document.querySelector("main").outerHTML = `<div class="msg"><h1>VOID<span>.</span></h1><p class="err">${html}</p>
+    <p><a class="pill" href="https://github.com/GUN642/VOID-Notes/releases">VOID Notes herunterladen</a></p></div>`;
+  setState("Fehler", "err");
+}
+function setState(text, cls) {
+  $("state").textContent = text;
+  $("dot").className = "dotx " + (cls || "");
+}
+
+const b64d = (s) => { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
+const b64e = (u8) => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+let cryptoKey;
+async function decryptBytes(data) {
+  const raw = b64d(data);
+  return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: raw.slice(0, 12) }, cryptoKey, raw.slice(12)));
+}
+const decryptText = async (d) => new TextDecoder().decode(await decryptBytes(d));
+async function encryptText(text) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, cryptoKey, new TextEncoder().encode(text)));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+  return b64e(out);
+}
+const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, "0")).join("");
+const SV = { ".sv": "timestamp" };
+
+// ---------------------------------------------------------------- remote state
+let mirror = {};
+const plainCache = new Map(); // ciphertext -> decoded block/meta
+let blocks = [];               // [{id, o, b}] sorted, without deleted
+let meta = { title: "", icon: "" };
+
+function setAt(path, value) {
+  const p = path.split("/").filter(Boolean);
+  if (!p.length) { mirror = (value && typeof value === "object") ? value : {}; return; }
+  let node = mirror;
+  for (const k of p.slice(0, -1)) { if (typeof node[k] !== "object" || node[k] === null) node[k] = {}; node = node[k]; }
+  if (value === null) delete node[p[p.length - 1]]; else node[p[p.length - 1]] = value;
+}
+
+async function decodeAll() {
+  const out = [];
+  for (const [id, e] of Object.entries(mirror.b || {})) {
+    if (!e || e.d || !e.c) continue;
+    let b = plainCache.get(e.c);
+    if (!b) {
+      try { b = JSON.parse(await decryptText(e.c)); } catch (_) { continue; }
+      plainCache.set(e.c, b);
+    }
+    out.push({ id, o: typeof e.o === "number" ? e.o : 0, b: Object.assign({ type: "TEXT", text: "" }, b) });
   }
+  out.sort((x, y) => x.o - y.o || (x.id < y.id ? -1 : 1));
+  blocks = out;
+  if (mirror.m && mirror.m.c) {
+    let m = plainCache.get(mirror.m.c);
+    if (!m) { try { m = JSON.parse(await decryptText(mirror.m.c)); plainCache.set(mirror.m.c, m); } catch (_) { m = null; } }
+    if (m) meta = { title: m.title || "", icon: m.icon || "" };
+    else if (!blocks.length) { fail("Der Schlüssel im Link passt nicht zu dieser Notiz."); return false; }
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------- writing
+function payload(b) {
+  // Same shape as the app writes (defaults left out).
+  const o = { id: "" };
+  if (b.type && b.type !== "TEXT") o.type = b.type;
+  if (b.text) o.text = b.text;
+  if (b.checked) o.checked = true;
+  if (b.level) o.level = b.level;
+  if (b.collapsed) o.collapsed = true;
+  for (const k of ["file", "fileName", "mime", "pageId", "emoji"]) if (b[k] != null) o[k] = b[k];
+  if (b.size) o.size = b.size;
+  return JSON.stringify(o);
+}
+
+async function patch(body) {
+  try {
+    const r = await fetch(BASE + ".json", { method: "PATCH", body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(r.status);
+  } catch (e) { setState("Nicht gespeichert – offline?", "err"); }
+}
+
+async function writeBlock(id, b, o) {
+  const c = await encryptText(payload(b));
+  plainCache.set(c, JSON.parse(payload(b)));
+  setAt(`/b/${id}`, { c, o, t: Date.now() });   // shown right away
+  await patch({ [`b/${id}`]: { c, o, t: SV } });
+}
+async function deleteBlock(id) {
+  setAt(`/b/${id}`, { d: true, o: 0, t: Date.now() });
+  await patch({ [`b/${id}`]: { d: true, o: 0, t: SV } });
+}
+async function writeMeta() {
+  const c = await encryptText(JSON.stringify({ title: meta.title, icon: meta.icon }));
+  plainCache.set(c, { ...meta });
+  setAt("/m", { c, t: Date.now() });
+  await patch({ m: { c, t: SV } });
+}
+
+const timers = new Map();
+function later(key, fn, ms = 450) { clearTimeout(timers.get(key)); timers.set(key, setTimeout(() => { timers.delete(key); fn(); }, ms)); }
+function flushAll() { for (const [k, t] of timers) { clearTimeout(t); } }
+
+// ---------------------------------------------------------------- rendering
+const HINTS = { TEXT: "Schreibe etwas …", H1: "Überschrift 1", H2: "Überschrift 2", H3: "Überschrift 3", BULLET: "Listeneintrag",
+  NUMBERED: "Listeneintrag", TODO: "Aufgabe", TOGGLE: "Aufklappbarer Abschnitt", QUOTE: "Zitat", CALLOUT: "Hinweis", CODE: "Code" };
+const TEXT_TYPES = new Set(Object.keys(HINTS));
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function fmt(text) {
+  const codes = [];
+  let h = esc(text).replace(/`([^`\n]+)`/g, (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
+  h = h.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+       .replace(/(^|[^*\w])\*(?![*\s])(.+?)(?<![*\s])\*(?![*\w])/g, "$1<i>$2</i>")
+       .replace(/(^|[^_\w])_(?![_\s])(.+?)(?<![_\s])_(?![_\w])/g, "$1<i>$2</i>")
+       .replace(/~~(.+?)~~/g, "<s>$1</s>")
+       .replace(/==(.+?)==/g, "<mark>$1</mark>")
+       .replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  return h.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[+i]}</code>`);
+}
+
+const els = new Map(); // id -> element
+let focused = null;    // id of the block being edited
+
+function visible() {
+  const out = []; let hide = Infinity;
+  for (const x of blocks) {
+    const lvl = x.b.level || 0;
+    if (lvl > hide) continue;
+    hide = Infinity; out.push(x);
+    if (x.b.type === "TOGGLE" && x.b.collapsed) hide = lvl;
+  }
+  return out;
+}
+
+function numbers() {
+  const m = new Map(), c = new Array(16).fill(0);
+  for (const x of blocks) {
+    const l = Math.min(x.b.level || 0, 15);
+    if (x.b.type === "NUMBERED") { c[l]++; m.set(x.id, c[l]); for (let d = l + 1; d < 16; d++) c[d] = 0; }
+    else for (let d = l; d < 16; d++) c[d] = 0;
+  }
+  return m;
+}
+
+function render() {
+  $("icon").textContent = meta.icon || "";
+  if (document.activeElement !== $("title")) $("title").textContent = meta.title;
+  document.title = (meta.title || "Geteilte Notiz") + " · VOID Notes";
+  const container = $("blocks");
+  const nums = numbers();
+  const list = visible();
+  const keep = new Set(list.map(x => x.id));
+  for (const [id, el] of els) if (!keep.has(id)) { if (id === focused) continue; el.remove(); els.delete(id); }
+  list.forEach((x, i) => {
+    let el = els.get(x.id);
+    const sig = JSON.stringify([x.b, nums.get(x.id) || 0]);
+    if (!el || (el.dataset.sig !== sig && x.id !== focused)) {
+      const fresh = build(x, nums.get(x.id) || 0);
+      fresh.dataset.sig = sig;
+      if (el) el.replaceWith(fresh); else container.appendChild(fresh);
+      els.set(x.id, fresh); el = fresh;
+    }
+    if (container.children[i] !== el && x.id !== focused) container.insertBefore(el, container.children[i] || null);
+  });
+}
+
+function build(x, n) {
+  const b = x.b, t = b.type;
+  const el = document.createElement("div");
+  el.className = "blk" + (t === "TODO" && b.checked ? " done" : "");
+  el.dataset.type = t; el.dataset.id = x.id;
+  el.style.paddingLeft = ((b.level || 0) * 26) + "px";
+  const gut = document.createElement("div"); gut.className = "gut"; el.appendChild(gut);
+  const mk = document.createElement("div"); mk.className = "mk";
+  if (t === "BULLET") mk.innerHTML = '<div class="bullet"></div>';
+  if (t === "NUMBERED") mk.innerHTML = `<div class="num">${(b.level || 0) % 2 ? String.fromCharCode(96 + ((n - 1) % 26) + 1) : n}.</div>`;
+  if (t === "TODO") { mk.innerHTML = `<div class="check${b.checked ? " on" : ""}">${b.checked ? "✓" : ""}</div>`; mk.firstChild.onclick = () => update(x.id, { checked: !b.checked }); }
+  if (t === "TOGGLE") { mk.innerHTML = `<div class="tog">${b.collapsed ? "▸" : "▾"}</div>`; mk.firstChild.onclick = () => update(x.id, { collapsed: !b.collapsed }); }
+  if (["BULLET", "NUMBERED", "TODO", "TOGGLE"].includes(t)) el.appendChild(mk);
+
+  if (TEXT_TYPES.has(t)) {
+    const txt = document.createElement("div");
+    txt.className = "txt"; txt.dataset.hint = HINTS[t];
+    txt.contentEditable = "plaintext-only";
+    if (txt.contentEditable !== "plaintext-only") txt.contentEditable = "true";
+    txt.spellcheck = t !== "CODE";
+    txt.innerHTML = t === "CODE" ? esc(b.text || "") : fmt(b.text || "");
+    wire(txt, x.id);
+    if (t === "QUOTE") { txt.classList.add("quote"); el.appendChild(txt); }
+    else if (t === "CALLOUT") { const box = document.createElement("div"); box.className = "callout"; box.innerHTML = `<span>${esc(b.emoji || "💡")}</span>`; box.appendChild(txt); el.appendChild(box); }
+    else if (t === "CODE") { const box = document.createElement("div"); box.className = "code"; box.appendChild(txt); el.appendChild(box); }
+    else el.appendChild(txt);
+  } else if (t === "DIVIDER") {
+    const d = document.createElement("div"); d.className = "divider"; el.appendChild(d);
+  } else if (t === "IMAGE") {
+    const d = document.createElement("div"); d.className = "img"; d.textContent = "Bild wird geladen …"; el.appendChild(d);
+    loadFile(b).then(url => { d.innerHTML = url ? `<img alt="">` : "Bild nur in der App verfügbar"; if (url) d.firstChild.src = url; });
+  } else if (t === "FILE") {
+    const a = document.createElement("a"); a.className = "file"; a.href = "#";
+    a.innerHTML = `<span>📎</span><span>${esc(b.fileName || "Datei")}<small>${b.size ? (b.size / 1024 > 1024 ? (b.size / 1048576).toFixed(1) + " MB" : Math.round(b.size / 1024) + " KB") : ""}</small></span>`;
+    a.onclick = async (e) => { e.preventDefault(); const url = await loadFile(b); if (!url) return alert("Diese Datei ist nur in der App verfügbar (größer als 3 MB)."); const l = document.createElement("a"); l.href = url; l.download = b.fileName || "Datei"; l.click(); };
+    el.appendChild(a);
+  } else {
+    return el; // sub page links stay in the app
+  }
+  const del = document.createElement("button"); del.className = "del"; del.textContent = "✕"; del.title = "Block löschen";
+  del.onclick = () => removeBlock(x.id);
+  el.appendChild(del);
+  return el;
+}
+
+const fileCache = new Map();
+function loadFile(b) {
+  if (!b.file) return Promise.resolve(null);
+  if (!fileCache.has(b.file)) {
+    fileCache.set(b.file, (async () => {
+      try {
+        const key = b.file.replace(/[.#$\[\]\/]/g, "_");
+        const r = await fetch(`${BASE}/f/${key}.json`);
+        const data = await r.json();
+        if (!data) return null;
+        return URL.createObjectURL(new Blob([await decryptBytes(data)], { type: b.mime || "application/octet-stream" }));
+      } catch (_) { return null; }
+    })());
+  }
+  return fileCache.get(b.file);
+}
+
+// ---------------------------------------------------------------- editing
+const find = (id) => blocks.find(x => x.id === id);
+const textOf = (el) => (el.innerText || "").replace(/\n$/, "");
+
+function caret(el) {
+  const s = getSelection(); if (!s.rangeCount) return 0;
+  const r = s.getRangeAt(0), pre = r.cloneRange();
+  pre.selectNodeContents(el); pre.setEnd(r.startContainer, r.startOffset);
+  return pre.toString().length;
+}
+function setCaret(el, off) {
+  el.focus();
+  const s = getSelection(), r = document.createRange();
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let node, left = off;
+  while ((node = w.nextNode())) { if (left <= node.length) { r.setStart(node, left); break; } left -= node.length; }
+  if (!node) { r.selectNodeContents(el); r.collapse(false); }
+  r.collapse(true); s.removeAllRanges(); s.addRange(r);
+}
+function focusBlock(id, off) {
+  render();
+  const el = els.get(id); if (!el) return;
+  const txt = el.querySelector(".txt"); if (!txt) return;
+  setCaret(txt, off < 0 ? (find(id)?.b.text || "").length : off);
+}
+
+function update(id, change) {
+  const x = find(id); if (!x) return;
+  x.b = Object.assign({}, x.b, change);
+  writeBlock(id, x.b, x.o).then(render);
+  render();
+}
+function orderAfter(id) {
+  const i = blocks.findIndex(x => x.id === id);
+  const a = i >= 0 ? blocks[i].o : (blocks.length ? blocks[blocks.length - 1].o : 0);
+  const next = i >= 0 ? blocks[i + 1] : undefined;
+  return next ? (a + next.o) / 2 : a + 1;
+}
+async function insertAfter(id, b) {
+  const nid = newId(), o = orderAfter(id);
+  blocks.push({ id: nid, o, b }); blocks.sort((x, y) => x.o - y.o || (x.id < y.id ? -1 : 1));
+  await writeBlock(nid, b, o);
+  return nid;
+}
+async function removeBlock(id) {
+  if (focused === id) focused = null;
+  blocks = blocks.filter(x => x.id !== id);
+  const el = els.get(id); if (el) { el.remove(); els.delete(id); }
+  await deleteBlock(id);
+  render();
+}
+
+const RULES = [["### ", "H3"], ["## ", "H2"], ["# ", "H1"], ["- ", "BULLET"], ["* ", "BULLET"], ["• ", "BULLET"],
+  ["[] ", "TODO"], ["[ ] ", "TODO"], ["> ", "TOGGLE"], ['" ', "QUOTE"], ["„ ", "QUOTE"], ["! ", "CALLOUT"]];
+
+function wire(txt, id) {
+  txt.addEventListener("focus", () => {
+    focused = id; $("toolbar").style.display = "flex";
+    const x = find(id); if (x && txt.dataset.raw !== "1") { const off = caret(txt); txt.textContent = x.b.text || ""; txt.dataset.raw = "1"; setCaret(txt, Math.min(off, txt.textContent.length)); }
+  });
+  txt.addEventListener("blur", () => {
+    setTimeout(() => {
+      if (document.activeElement && document.activeElement.closest && document.activeElement.closest("#toolbar")) return;
+      if (focused === id) focused = null;
+      $("toolbar").style.display = "none";
+      const x = find(id); txt.dataset.raw = "";
+      if (x) { txt.innerHTML = x.b.type === "CODE" ? esc(x.b.text || "") : fmt(x.b.text || ""); }
+      render();
+    }, 120);
+  });
+  txt.addEventListener("input", () => {
+    const x = find(id); if (!x) return;
+    let text = textOf(txt);
+    if (x.b.type === "TEXT") {
+      for (const [p, type] of RULES) if (text.startsWith(p) && caret(txt) === p.length) {
+        x.b = Object.assign({}, x.b, { type, text: text.slice(p.length) }, type === "CALLOUT" ? { emoji: "💡" } : {});
+        writeBlock(id, x.b, x.o); focused = null; els.get(id)?.remove(); els.delete(id); focusBlock(id, 0); return;
+      }
+      const m = text.match(/^\d{1,3}[.)] /);
+      if (m && caret(txt) === m[0].length) { x.b = Object.assign({}, x.b, { type: "NUMBERED", text: text.slice(m[0].length) }); writeBlock(id, x.b, x.o); focused = null; els.get(id)?.remove(); els.delete(id); focusBlock(id, 0); return; }
+      if (text === "---") { x.b = { type: "DIVIDER" }; writeBlock(id, x.b, x.o); insertAfter(id, { type: "TEXT", text: "" }).then(n => { focused = null; focusBlock(n, 0); }); return; }
+    }
+    x.b = Object.assign({}, x.b, { text });
+    later(id, () => writeBlock(id, x.b, x.o));
+  });
+  txt.addEventListener("beforeinput", (e) => {
+    const x = find(id); if (!x) return;
+    if (e.inputType === "insertParagraph") {
+      e.preventDefault();
+      if (x.b.type === "CODE") { document.execCommand("insertText", false, "\n"); return; }
+      enter(x, txt);
+    } else if (e.inputType === "deleteContentBackward") {
+      const s = getSelection();
+      if (s.isCollapsed && caret(txt) === 0) { e.preventDefault(); backspace(x, txt); }
+    }
+  });
+  txt.addEventListener("keydown", (e) => {
+    const x = find(id); if (!x) return;
+    if (e.key === "Tab") { e.preventDefault(); indent(x, e.shiftKey ? -1 : 1); }
+    else if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && x.b.type === "TODO") { e.preventDefault(); update(id, { checked: !x.b.checked }); }
+    else if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); document.execCommand("insertText", false, "\n"); }
+    else if (e.key === "Enter" && !e.isComposing && x.b.type !== "CODE") { e.preventDefault(); enter(x, txt); }
+    else if (e.key === "Backspace" && getSelection().isCollapsed && caret(txt) === 0) { e.preventDefault(); backspace(x, txt); }
+    else if ((e.ctrlKey || e.metaKey) && ["b", "i"].includes(e.key.toLowerCase())) { e.preventDefault(); wrap(e.key.toLowerCase() === "b" ? "**" : "*"); }
+  });
+}
+
+async function enter(x, txt) {
+  clearTimeout(timers.get(x.id));
+  const text = textOf(txt), off = caret(txt);
+  const before = text.slice(0, off), after = text.slice(off);
+  const listish = ["BULLET", "NUMBERED", "TODO", "TOGGLE", "QUOTE", "CALLOUT"].includes(x.b.type);
+  if (!text && listish) {
+    const ch = (x.b.level || 0) > 0 ? { level: x.b.level - 1 } : { type: "TEXT" };
+    x.b = Object.assign({}, x.b, ch); focused = null; els.get(x.id)?.remove(); els.delete(x.id);
+    await writeBlock(x.id, x.b, x.o); focusBlock(x.id, 0); return;
+  }
+  x.b = Object.assign({}, x.b, { text: before });
+  txt.textContent = before;
+  writeBlock(x.id, x.b, x.o);
+  const cont = ["BULLET", "NUMBERED", "TODO"].includes(x.b.type);
+  const nb = { type: cont ? x.b.type : "TEXT", text: after };
+  if (x.b.level) nb.level = x.b.level;
+  if (x.b.type === "TOGGLE" && !x.b.collapsed) nb.level = (x.b.level || 0) + 1;
+  const n = await insertAfter(x.id, nb);
+  focused = null; focusBlock(n, 0);
+}
+
+async function backspace(x, txt) {
+  clearTimeout(timers.get(x.id));
+  const text = textOf(txt);
+  if (x.b.type !== "TEXT") { x.b = Object.assign({}, x.b, { type: "TEXT", text }); focused = null; els.get(x.id)?.remove(); els.delete(x.id); await writeBlock(x.id, x.b, x.o); focusBlock(x.id, 0); return; }
+  if ((x.b.level || 0) > 0) { indent(x, -1); return; }
+  const vis = visible(), i = vis.findIndex(v => v.id === x.id);
+  let prev = null; for (let j = i - 1; j >= 0; j--) if (TEXT_TYPES.has(vis[j].b.type)) { prev = vis[j]; break; }
+  if (!prev) { if (!text) setCaret($("title"), meta.title.length); return; }
+  const join = (prev.b.text || "").length;
+  prev.b = Object.assign({}, prev.b, { text: (prev.b.text || "") + text });
+  await writeBlock(prev.id, prev.b, prev.o);
+  await removeBlock(x.id);
+  focused = null; focusBlock(prev.id, join);
+}
+
+function indent(x, d) {
+  const lvl = Math.max(0, Math.min(8, (x.b.level || 0) + d));
+  if (d > 0) { const i = blocks.findIndex(v => v.id === x.id); if (i <= 0 || lvl > (blocks[i - 1].b.level || 0) + 1) return; }
+  const off = caret(els.get(x.id).querySelector(".txt"));
+  x.b = Object.assign({}, x.b, { level: lvl, text: textOf(els.get(x.id).querySelector(".txt")) });
+  focused = null; els.get(x.id)?.remove(); els.delete(x.id);
+  writeBlock(x.id, x.b, x.o); focusBlock(x.id, off);
+}
+
+function wrap(m) {
+  const x = find(focused); if (!x) return;
+  const txt = els.get(x.id).querySelector(".txt");
+  const s = getSelection(); const r = s.rangeCount ? s.getRangeAt(0) : null;
+  const start = caret(txt); const len = r ? r.toString().length : 0;
+  const t = textOf(txt);
+  const nt = t.slice(0, start) + m + t.slice(start, start + len) + m + t.slice(start + len);
+  txt.textContent = nt; x.b = Object.assign({}, x.b, { text: nt });
+  writeBlock(x.id, x.b, x.o); setCaret(txt, start + m.length + len);
+}
+
+document.querySelectorAll("#toolbar button").forEach(btn => {
+  btn.addEventListener("mousedown", e => e.preventDefault());
+  btn.addEventListener("click", () => {
+    const x = find(focused); if (!x) return;
+    const txt = els.get(x.id).querySelector(".txt");
+    if (btn.dataset.w) return wrap(btn.dataset.w);
+    if (btn.dataset.a === "in") return indent(x, 1);
+    if (btn.dataset.a === "out") return indent(x, -1);
+    if (btn.dataset.a === "del") return removeBlock(x.id);
+    const t = btn.dataset.t;
+    const type = x.b.type === t ? "TEXT" : t;
+    x.b = Object.assign({}, x.b, { type, text: textOf(txt) });
+    const off = caret(txt);
+    focused = null; els.get(x.id)?.remove(); els.delete(x.id);
+    writeBlock(x.id, x.b, x.o); focusBlock(x.id, off);
+  });
+});
+
+$("title").addEventListener("input", () => { meta.title = $("title").innerText.replace(/\n/g, " ").trim(); later("#title", writeMeta); });
+$("title").addEventListener("keydown", async (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const first = blocks.find(x => TEXT_TYPES.has(x.b.type));
+  if (first) focusBlock(first.id, 0); else { const n = await insertAfter(null, { type: "TEXT", text: "" }); focusBlock(n, 0); }
+});
+$("more").addEventListener("click", async () => {
+  const last = blocks[blocks.length - 1];
+  if (last && last.b.type === "TEXT" && !last.b.text) return focusBlock(last.id, 0);
+  const n = await insertAfter(last ? last.id : null, { type: "TEXT", text: "" });
+  focusBlock(n, 0);
+});
+window.addEventListener("beforeunload", flushAll);
+
+// ---------------------------------------------------------------- start
+async function start() {
+  if (!valid) return fail("Dieser Link ist unvollständig. Bitte den ganzen Link kopieren.");
+  if (!window.crypto || !crypto.subtle) return fail("Dieser Browser kann die Notiz nicht entschlüsseln (HTTPS nötig).");
+  const q = "s?d=" + encodeURIComponent(`${HOST}/${NOTE}/${KEY}`);
+  $("openApp").href = /Android/i.test(navigator.userAgent)
+    ? `intent://${q}#Intent;scheme=voidnotes;package=app.voidnotes;S.browser_fallback_url=${encodeURIComponent("https://github.com/GUN642/VOID-Notes/releases")};end`
+    : `voidnotes://${q}`;
+  try {
+    cryptoKey = await crypto.subtle.importKey("raw", b64d(KEY), "AES-GCM", false, ["encrypt", "decrypt"]);
+  } catch (_) { return fail("Ungültiger Schlüssel im Link."); }
+
+  let queue = Promise.resolve();
+  const apply = (ev, data) => {
+    queue = queue.then(async () => {
+      const msg = JSON.parse(data); if (!msg) return;
+      if (ev === "put") setAt(msg.path, msg.data);
+      else for (const [k, v] of Object.entries(msg.data || {})) setAt(msg.path.replace(/\/$/, "") + "/" + k, v);
+      if (await decodeAll()) { render(); setState("Live", "on"); }
+    }).catch(() => {});
+  };
+  let first = true;
+  const connect = () => {
+    const es = new EventSource(BASE + ".json");
+    es.addEventListener("put", e => apply("put", e.data));
+    es.addEventListener("patch", e => apply("patch", e.data));
+    es.addEventListener("cancel", () => { setState("Kein Zugriff", "err"); es.close(); });
+    es.onopen = () => setState("Live", "on");
+    es.onerror = () => { setState("Offline – verbinde neu …", "err"); };
+    es.addEventListener("put", () => {
+      if (!first) return; first = false;
+      queue.then(() => { if (!mirror.m && !blocks.length) $("meta").textContent = "Diese Notiz existiert nicht (mehr) – vielleicht wurde die Freigabe beendet."; });
+    }, { once: true });
+  };
+  connect();
+}
+start();
 </script>
 </body>
 </html>

@@ -42,4 +42,4 @@ Für einen privaten Schlüssel die Secrets `VOID_KEYSTORE_BASE64`, `VOID_KEYSTOR
 5. **GitHub Pages einschalten** (sonst zeigen Links eine 404-Seite): Repo → Settings → Pages → Source „Deploy from a branch“ → Branch `ccr-cb163825-s6okw8`, Ordner `/docs` → Save.
 6. Android 12+: in der App unter Einstellungen → Teilen „Links in App öffnen erlauben“ → `gun642.github.io` anhaken – dann öffnen Links direkt die App.
 
-Wer einen Link bekommt, braucht nichts einzurichten – die Datenbank-Adresse steckt im Link.
+Wer einen Link bekommt, braucht nichts einzurichten – die Datenbank-Adresse steckt im Link. Der Link öffnet die Notiz auch direkt im Browser (lesen und bearbeiten, live, ohne App).
