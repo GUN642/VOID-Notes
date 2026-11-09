@@ -369,12 +369,22 @@ fun Marker(editor: EditorState, b: EditBlock, number: Int, scale: Float) {
 // ------------------------------------------------------------------ handle & block menu
 
 @Composable
-fun BlockHandle(visible: Boolean, items: () -> List<MenuItem?>) {
+fun BlockHandle(visible: Boolean, lineHeight: androidx.compose.ui.unit.Dp, top: androidx.compose.ui.unit.Dp, selecting: Boolean, selected: Boolean, items: () -> List<MenuItem?>) {
     val c = VoidTheme.colors
     var open by remember { mutableStateOf(false) }
-    Box(Modifier.width(26.dp)) {
+    // Centred on the first text line, like checkboxes and bullets.
+    Box(Modifier.width(26.dp).padding(top = top).height(lineHeight), contentAlignment = Alignment.Center) {
+        if (selecting) {
+            Box(
+                Modifier.size(18.dp).clip(CircleShape)
+                    .border(1.6.dp, if (selected) c.accent else c.textMuted, CircleShape)
+                    .background(if (selected) c.accent else Color.Transparent),
+                contentAlignment = Alignment.Center,
+            ) { if (selected) Icon(Icons.Outlined.Check, null, Modifier.size(12.dp), tint = c.onAccent) }
+            return@Box
+        }
         Box(
-            Modifier.padding(top = 2.dp).size(24.dp).clip(RoundedCornerShape(6.dp)).clickable { open = true },
+            Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)).clickable { open = true },
             contentAlignment = Alignment.Center,
         ) {
             if (visible || open) Icon(Icons.Outlined.DragIndicator, "Block-Menü", Modifier.size(18.dp), tint = c.textMuted)

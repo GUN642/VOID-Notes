@@ -95,6 +95,31 @@ object MarkdownIO {
         }
     }.replace(Regex("\n{3,}"), "\n\n").trim() + "\n"
 
+    /** Blocks as Markdown for the clipboard – pasting them back gives the same blocks. */
+    fun clipboard(blocks: List<Block>, pages: Map<String, Page>): String = buildString {
+        val numbers = numbering(blocks)
+        blocks.forEachIndexed { i, b ->
+            val indent = "  ".repeat(b.level)
+            when (b.type) {
+                BlockType.TEXT -> append(indent).append(b.text)
+                BlockType.H1 -> append("# ").append(b.text)
+                BlockType.H2 -> append("## ").append(b.text)
+                BlockType.H3 -> append("### ").append(b.text)
+                BlockType.BULLET -> append(indent).append("- ").append(b.text)
+                BlockType.NUMBERED -> append(indent).append(numbers[i]).append(". ").append(b.text)
+                BlockType.TODO -> append(indent).append(if (b.checked) "- [x] " else "- [ ] ").append(b.text)
+                BlockType.TOGGLE -> append(indent).append("- ").append(b.text)
+                BlockType.QUOTE -> append("> ").append(b.text)
+                BlockType.CALLOUT -> append("> ").append(b.emoji ?: "💡").append(' ').append(b.text)
+                BlockType.CODE -> append("```\n").append(b.text).append("\n```")
+                BlockType.DIVIDER -> append("---")
+                BlockType.IMAGE, BlockType.FILE -> append(b.fileName ?: "Datei")
+                BlockType.PAGE -> append(pages[b.pageId]?.displayTitle ?: "Seite")
+            }
+            append('\n')
+        }
+    }.trimEnd()
+
     fun plainText(page: Page, pages: Map<String, Page>): String = buildString {
         append(page.displayTitle).append("\n\n")
         val numbers = numbering(page.blocks)

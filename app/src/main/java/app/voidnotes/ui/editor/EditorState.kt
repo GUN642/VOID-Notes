@@ -218,7 +218,7 @@ class EditorState(
                 enter(b, new.text.substring(0, sel - 1), new.text.substring(sel))
                 return
             }
-            paste(b, new.text)
+            paste(b, old.text, new.text)
             return
         }
         b.value = new
@@ -230,7 +230,27 @@ class EditorState(
     }
 
     /** Several lines arrived at once (pasted): the first stays here, the rest become blocks (Markdown understood). */
-    private fun paste(b: EditBlock, text: String) {
+    private fun paste(b: EditBlock, oldText: String, text: String) {
+        // Pasted into an empty line: the whole text is read as blocks (e.g. copied checklist lines).
+        if (oldText.isEmpty()) {
+            val parsed = MarkdownIO.import(text, extractTitle = false).second
+                .map { if (b.type.continues && it.type == BlockType.TEXT) it.copy(type = b.type) else it }
+                .map { it.copy(level = it.level + b.level) }
+            if (parsed.isNotEmpty()) {
+                val firstBlock = parsed.first()
+                b.type = firstBlock.type
+                b.checked = firstBlock.checked
+                b.level = firstBlock.level
+                b.emoji = firstBlock.emoji
+                b.value = TextFieldValue(firstBlock.text, TextRange(firstBlock.text.length))
+                var at = index(b.id) + 1
+                var last = b
+                parsed.drop(1).forEach { pb -> EditBlock(pb).also { blocks.add(at++, it); last = it } }
+                requestFocus(last.id, -1)
+                changed()
+                return
+            }
+        }
         val first = text.substringBefore('\n')
         val rest = text.substringAfter('\n')
         b.value = TextFieldValue(first, TextRange(first.length))
@@ -635,6 +655,80 @@ class EditorState(
             blocks.clear()
             blocks.addAll(list)
         }
+    }
+
+    // ------------------------------------------------------------------ selecting several blocks
+
+    val selected = mutableStateListOf<String>()
+    var selecting by mutableStateOf(false)
+        private set
+
+    fun startSelection(id: String) {
+        selecting = true
+        selected.clear()
+        selected.add(id)
+        slashFor = null
+    }
+
+    fun toggleSelected(id: String) {
+        if (id in selected) selected.remove(id) else selected.add(id)
+        if (selected.isEmpty()) selecting = false
+    }
+
+    fun selectAll() {
+        selected.clear()
+        selected.addAll(blocks.map { it.id })
+        selecting = true
+    }
+
+    fun endSelection() {
+        selecting = false
+        selected.clear()
+    }
+
+    /** Selected blocks in page order. */
+    fun selectedBlocks(): List<Block> = blocks.filter { it.id in selected }.map { it.toBlock() }
+
+    fun deleteSelected() {
+        if (selected.isEmpty()) return
+        checkpoint()
+        val ids = selected.toSet()
+        blocks.removeAll { it.id in ids }
+        if (blocks.isEmpty()) blocks.add(EditBlock(Block()))
+        endSelection()
+        changed()
+    }
+
+    fun duplicateSelected() {
+        if (selected.isEmpty()) return
+        checkpoint()
+        val at = blocks.indexOfLast { it.id in selected } + 1
+        val copies = selectedBlocks().map { EditBlock(it.copy(id = newId())) }
+        blocks.addAll(at, copies)
+        selected.clear()
+        selected.addAll(copies.map { it.id })
+        changed()
+    }
+
+    fun setTypeSelected(type: BlockType) {
+        checkpoint()
+        blocks.filter { it.id in selected && it.type.hasText }.forEach {
+            it.type = type
+            if (type == BlockType.CALLOUT && it.emoji == null) it.emoji = "💡"
+        }
+        changed()
+    }
+
+    fun checkSelected(checked: Boolean) {
+        checkpoint()
+        blocks.filter { it.id in selected && it.type == BlockType.TODO }.forEach { it.checked = checked }
+        changed()
+    }
+
+    fun shiftSelected(delta: Int) {
+        checkpoint()
+        blocks.filter { it.id in selected }.forEach { it.level = (it.level + delta).coerceIn(0, 8) }
+        changed()
     }
 
     fun appendBlock(block: Block) {

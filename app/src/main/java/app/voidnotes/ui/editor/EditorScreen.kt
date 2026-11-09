@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -49,6 +50,9 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.BorderColor
 import androidx.compose.material.icons.outlined.CheckBox
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -223,6 +227,7 @@ fun EditorScreen(
     val maxWidth = if (page?.wide == true) 100_000.dp else settings.pageWidth.dp.dp
 
     BackHandler(enabled = editor.slashFor != null) { editor.slashFor = null }
+    BackHandler(enabled = editor.selecting) { editor.endSelection() }
 
     val dropTarget = remember(editor) {
         object : DragAndDropTarget {
@@ -271,7 +276,9 @@ fun EditorScreen(
                 )
             }
         }
-        if (editor.focusedId != null) {
+        if (editor.selecting) {
+            SelectionBar(vm, editor, pages, Modifier.navigationBarsPadding())
+        } else if (editor.focusedId != null) {
             EditorToolbar(vm, editor, actions, Modifier.imePadding().navigationBarsPadding()) { focusManager.clearFocus() }
         } else {
             Spacer(Modifier.navigationBarsPadding().imePadding())
@@ -485,6 +492,7 @@ private fun BlockRow(
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     var menu by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     val blockMenu: () -> List<MenuItem?> = {
         val turnInto = if (b.type.hasText) listOf(
@@ -498,7 +506,10 @@ private fun BlockRow(
             null,
         ) else emptyList()
         val calloutItems = if (b.type == BlockType.CALLOUT) listOf(MenuItem("Symbol ändern", Icons.Outlined.Lightbulb) { vm.dialog = Dialog.CalloutEmoji(b.id) }) else emptyList()
-        fileItems + calloutItems + turnInto + listOf(
+        listOf(
+            MenuItem("Mehrere auswählen", Icons.Outlined.Checklist) { focusManager.clearFocus(); editor.startSelection(b.id) },
+            Separator,
+        ) + fileItems + calloutItems + turnInto + listOf(
             MenuItem("Nach oben", Icons.Outlined.ArrowUpward) { editor.move(b, -1) },
             MenuItem("Nach unten", Icons.Outlined.ArrowDownward) { editor.move(b, +1) },
             MenuItem("Einrücken", Icons.AutoMirrored.Outlined.FormatIndentIncrease) { editor.indent(b) },
@@ -520,7 +531,20 @@ private fun BlockRow(
             Modifier.fillMaxWidth().hoverable(interaction).padding(top = topPad, bottom = 1.dp),
             verticalAlignment = Alignment.Top,
         ) {
-            BlockHandle(visible = hovered || editor.focusedId == b.id, items = blockMenu)
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val lineH = if (b.type.hasText) with(density) { blockStyle(b.type, c, scale, false).lineHeight.toDp() } else 26.dp
+            val handleTop = when (b.type) {
+                BlockType.CALLOUT, BlockType.CODE -> 16.dp
+                BlockType.QUOTE -> 2.dp
+                BlockType.IMAGE -> 6.dp
+                BlockType.FILE -> 18.dp
+                BlockType.PAGE -> 6.dp
+                else -> 0.dp
+            }
+            BlockHandle(
+                visible = hovered || editor.focusedId == b.id, lineHeight = lineH, top = handleTop,
+                selecting = editor.selecting, selected = b.id in editor.selected, items = blockMenu,
+            )
             Spacer(Modifier.width((b.level * 26).dp))
             when (b.type) {
                 BlockType.BULLET, BlockType.NUMBERED, BlockType.TODO, BlockType.TOGGLE -> {
@@ -568,6 +592,14 @@ private fun BlockRow(
                 else -> TextBlock(vm, editor, b, settings, actions, Modifier.weight(1f))
             }
         }
+        if (editor.selecting) {
+            val isSel = b.id in editor.selected
+            Box(
+                Modifier.matchParentSize().clip(RoundedCornerShape(10.dp))
+                    .background(if (isSel) c.selection else Color.Transparent)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { editor.toggleSelected(b.id) },
+            )
+        }
         VoidMenu(menu, { menu = false }, if (menu) blockMenu() else emptyList(), offset = DpOffset(30.dp, 0.dp))
         if (editor.slashFor == b.id) SlashMenu(vm, editor, b, actions)
     }
@@ -612,7 +644,7 @@ private fun SlashMenu(vm: NotesViewModel, editor: EditorState, b: EditBlock, act
         offset = DpOffset(56.dp, 4.dp),
         containerColor = c.surfaceHigh,
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.widthIn(min = 240.dp),
+        modifier = Modifier.widthIn(min = 240.dp).heightIn(max = 340.dp),
     ) {
         if (items.isEmpty()) {
             Text("Nichts gefunden", color = c.textMuted, modifier = Modifier.padding(16.dp))
@@ -644,12 +676,10 @@ private fun EditorToolbar(vm: NotesViewModel, editor: EditorState, actions: AppA
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-            Box {
-                ToolButton(Icons.Outlined.Add, "Einfügen", !onTitle) { insert = true }
-                VoidMenu(
-                    insert, { insert = false },
-                    if (insert) insertItems(vm, editor, actions, convert = false).map { item -> MenuItem(item.label, item.icon) { item.run(editor.focused ?: editor.block(editor.lastFocusedId)) } } else emptyList(),
-                )
+            ToolButton(Icons.Outlined.Add, "Einfügen", !onTitle) { insert = true }
+            if (insert) InsertSheet(insertItems(vm, editor, actions, convert = false), onDismiss = { insert = false }) { item ->
+                insert = false
+                item.run(editor.focused ?: editor.block(editor.lastFocusedId))
             }
             if (b != null && b.type.hasText) {
                 ToolButton(Icons.Outlined.CheckBox, "Checkbox", true, active = b.type == BlockType.TODO) {
@@ -732,4 +762,86 @@ fun screenTitle(s: Screen): String = when (s) {
     Screen.Templates -> "Vorlagen"
     Screen.Trash -> "Papierkorb"
     Screen.Settings -> "Einstellungen"
+}
+
+/** Everything that can be inserted, as a scrollable sheet from the bottom. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun InsertSheet(items: List<InsertItem>, onDismiss: () -> Unit, onPick: (InsertItem) -> Unit) {
+    val c = VoidTheme.colors
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        contentColor = c.text,
+        sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
+            Label("Einfügen", Modifier.padding(start = 4.dp, bottom = 12.dp), color = c.text)
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
+                maxItemsInEachRow = 3,
+            ) {
+                items.forEach { item ->
+                    Column(
+                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(c.surfaceHigh)
+                            .border(1.dp, c.divider, RoundedCornerShape(16.dp))
+                            .clickable { onPick(item) }.padding(vertical = 14.dp, horizontal = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Icon(item.icon, null, Modifier.size(24.dp), tint = c.accent)
+                        Spacer(Modifier.height(6.dp))
+                        Text(item.label, color = c.text, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Actions for several selected blocks (copy several checklist lines at once etc.). */
+@Composable
+private fun SelectionBar(vm: NotesViewModel, editor: EditorState, pages: Map<String, Page>, modifier: Modifier) {
+    val c = VoidTheme.colors
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    var more by remember { mutableStateOf(false) }
+    val count = editor.selected.size
+    fun copy() {
+        clipboard.setText(androidx.compose.ui.text.AnnotatedString(app.voidnotes.data.MarkdownIO.clipboard(editor.selectedBlocks(), pages)))
+    }
+    Column(modifier.fillMaxWidth().background(c.surface)) {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(c.divider))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            ToolButton(Icons.Outlined.Close, "Fertig", true) { editor.endSelection() }
+            Text("$count ausgewählt", color = c.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 4.dp))
+            Spacer(Modifier.weight(1f))
+            Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                ToolButton(Icons.Outlined.ContentCopy, "Kopieren", count > 0) {
+                    copy(); vm.message(if (count == 1) "1 Block kopiert" else "$count Blöcke kopiert"); editor.endSelection()
+                }
+                ToolButton(Icons.Outlined.ContentCut, "Ausschneiden", count > 0) {
+                    copy(); editor.deleteSelected(); vm.message("Ausgeschnitten")
+                }
+                ToolButton(Icons.Outlined.DeleteOutline, "Löschen", count > 0) { editor.deleteSelected() }
+                Box {
+                    ToolButton(Icons.Outlined.MoreVert, "Mehr", true) { more = true }
+                    VoidMenu(
+                        more, { more = false },
+                        listOf(
+                            MenuItem("Alle auswählen", Icons.Outlined.Checklist) { editor.selectAll() },
+                            MenuItem("Duplizieren", Icons.Outlined.ContentCopy) { editor.duplicateSelected() },
+                            Separator,
+                            MenuItem("Als Checkliste", Icons.Outlined.CheckBox) { editor.setTypeSelected(BlockType.TODO) },
+                            MenuItem("Alle abhaken", Icons.Outlined.CheckBox) { editor.checkSelected(true) },
+                            MenuItem("Alle Haken entfernen", Icons.Outlined.CheckBox) { editor.checkSelected(false) },
+                            MenuItem("Als Aufzählung", Icons.AutoMirrored.Outlined.FormatListBulleted) { editor.setTypeSelected(BlockType.BULLET) },
+                            MenuItem("Als Text", Icons.Outlined.Notes) { editor.setTypeSelected(BlockType.TEXT) },
+                            Separator,
+                            MenuItem("Einrücken", Icons.AutoMirrored.Outlined.FormatIndentIncrease) { editor.shiftSelected(+1) },
+                            MenuItem("Ausrücken", Icons.AutoMirrored.Outlined.FormatIndentDecrease) { editor.shiftSelected(-1) },
+                        ),
+                    )
+                }
+            }
+        }
+    }
 }
