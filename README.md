@@ -8,6 +8,7 @@ Notizen im Nothing-Stil – aufgebaut wie Notion: Seiten mit Unterseiten, Blöck
 - **Schnell formatieren**: `/` öffnet alle Blocktypen; `# `, `- `, `1. `, `[] `, `> `, `" `, `! `, ```` ``` ````, `---` am Zeilenanfang; im Text `**fett**`, `*kursiv*`, `~~durch~~`, `==markiert==`, `` `Code` ``
 - **Vorlagen**: Checkliste, Besprechung, Aufgaben, Tagebuch, Projekt, Briefing, Kurs – und eigene (Seite → ⋮ → „Als Vorlage speichern“). Platzhalter `{{datum}}`, `{{zeit}}`, `{{wochentag}}`, `{{kw}}`, `{{monat}}`
 - **Anhänge**: Dateien, Bilder aus der Galerie, Kamera-Fotos; Dateien aus anderen Apps teilen oder (DeX) hineinziehen
+- **Notion-Import**: kompletten Workspace-Export („Markdown & CSV“ als ZIP) mit Unterseiten, Bildern, Dateien und Datenbanken übernehmen (Einstellungen → Import)
 - **PDF-Export, Drucken, Teilen** (PDF, Markdown, Text), Markdown-Import, Sicherung/Wiederherstellung als ZIP
 - **Hell & Dunkel**: System, Schwarz (AMOLED), Graphit, Papier, Weiß; sieben Akzentfarben; Dot-Matrix-Überschriften
 - **Samsung DeX**: startet im Vollbild, Seitenleiste + Editor nebeneinander, Maus (Rechtsklick-Menüs, Hover), Tastenkürzel:

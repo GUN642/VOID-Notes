@@ -147,11 +147,12 @@ fun EmojiDialog(current: String, onDismiss: () -> Unit, allowRemove: Boolean = t
 
 /** Choose how a new page starts: empty or from a template. */
 @Composable
-fun TemplatePickerDialog(templates: List<Template>, onDismiss: () -> Unit, onOpenLink: (() -> Unit)? = null, onPick: (Template?) -> Unit) {
+fun TemplatePickerDialog(templates: List<Template>, onDismiss: () -> Unit, onOpenLink: (() -> Unit)? = null, onNotion: (() -> Unit)? = null, onPick: (Template?) -> Unit) {
     VoidDialog("Neue Seite", onDismiss, null, {}) {
         Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
             TemplateRow(icon = "📄", name = "Leere Seite", description = "Ohne Vorlage beginnen") { onPick(null) }
             onOpenLink?.let { open -> TemplateRow(icon = "🔗", name = "Geteilten Link öffnen", description = "Notiz, die jemand mit dir geteilt hat") { open() } }
+            onNotion?.let { open -> TemplateRow(icon = "📥", name = "Aus Notion importieren", description = "Export-ZIP („Markdown & CSV“) einlesen") { open() } }
             templates.forEach { t -> TemplateRow(t.icon, t.name, t.description) { onPick(t) } }
         }
     }

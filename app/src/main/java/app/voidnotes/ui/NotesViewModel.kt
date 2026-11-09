@@ -796,6 +796,37 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Progress text of a running Notion import (null = none). */
+    var importStatus by mutableStateOf<String?>(null)
+        private set
+
+    fun importNotion(uri: Uri?) {
+        if (uri == null || importStatus != null) return
+        commitEditor()
+        importStatus = "Starte …"
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val work = File(app.cacheDir, "notion-import")
+            val r = withContext(Dispatchers.IO) {
+                runCatching {
+                    app.contentResolver.openInputStream(uri)?.use { input ->
+                        app.voidnotes.data.NotionImport(store, work) { importStatus = it }.run(input)
+                    } ?: error("Datei kann nicht gelesen werden")
+                }.also { work.deleteRecursively() }
+            }
+            importStatus = null
+            r.onSuccess { result ->
+                // Imported top level pages come after the existing ones.
+                var order = (children(null).maxOfOrNull { it.order } ?: 0L) + 1
+                val roots = result.rootIds.toSet()
+                result.pages.forEach { p -> store.put(if (p.id in roots) p.copy(order = order++) else p) }
+                editSettings { s -> s.copy(expanded = s.expanded + result.rootIds) }
+                message("${result.pages.size} Seiten und ${result.attachments} Anhänge aus Notion importiert")
+                navigate(Screen.Home)
+            }.onFailure { message("Notion-Import fehlgeschlagen: ${it.message}") }
+        }
+    }
+
     fun backupTo(uri: Uri) {
         commitEditor()
         viewModelScope.launch {

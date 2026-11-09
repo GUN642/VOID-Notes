@@ -55,7 +55,9 @@ class AppActions(
     private val openBackup: () -> Unit,
     private val openMarkdown: () -> Unit,
     private val pickFolder: () -> Unit,
+    private val pickNotion: () -> Unit,
 ) {
+    fun importNotion() = pickNotion()
     fun pickBackupFolder() = pickFolder()
     fun copy(label: String, text: String) {
         launcher.copy(label, text)
@@ -107,6 +109,7 @@ fun VoidNotesRoot(vm: NotesViewModel) {
     val openZip = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::restoreFrom) }
     val openMd = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.importMarkdown(it) }
     val openTree = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { vm.setBackupFolder(it) }
+    val openNotion = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { vm.importNotion(it) }
 
     val actions = remember(vm) {
         AppActions(
@@ -123,6 +126,7 @@ fun VoidNotesRoot(vm: NotesViewModel) {
             openBackup = { runCatching { openZip.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed")) } },
             openMarkdown = { runCatching { openMd.launch(arrayOf("text/markdown", "text/plain", "text/x-markdown", "application/octet-stream")) } },
             pickFolder = { runCatching { openTree.launch(null) } },
+            pickNotion = { runCatching { openNotion.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) } },
         )
     }
 
@@ -238,10 +242,12 @@ private fun StartupDialogs(vm: NotesViewModel) {
 @Composable
 private fun Dialogs(vm: NotesViewModel, pages: Map<String, Page>, templates: List<Template>) {
     val dismiss = { vm.dialog = null }
+    val actions = LocalActions.current
     vm.newPageParent?.let { parent ->
         TemplatePickerDialog(
             templates, onDismiss = { vm.newPageParent = null },
             onOpenLink = if (parent.isEmpty()) ({ vm.newPageParent = null; vm.dialog = Dialog.OpenLink }) else null,
+            onNotion = if (parent.isEmpty()) ({ vm.newPageParent = null; actions.importNotion() }) else null,
         ) { t -> vm.newPage(parent.ifEmpty { null }, t) }
     }
     when (val d = vm.dialog) {

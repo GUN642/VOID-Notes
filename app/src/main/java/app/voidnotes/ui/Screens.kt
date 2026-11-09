@@ -386,7 +386,9 @@ fun SettingsScreen(vm: NotesViewModel, s: AppSettings, wide: Boolean) {
                     Toggle("Fußzeile", "Seitentitel und Seitenzahl unten auf jeder Seite", s.pdfPageNumbers) { v -> vm.editSettings { it.copy(pdfPageNumbers = v) } }
 
                     Group("Import")
-                    Pill("Markdown importieren", selected = false, onClick = { actions.importMarkdown() })
+                    NotionSection(vm)
+                    Spacer(Modifier.height(12.dp))
+                    Pill("Markdown-Dateien importieren", selected = false, onClick = { actions.importMarkdown() })
 
                     Group("Sicherung")
                     BackupSection(vm, s)
@@ -656,5 +658,30 @@ private fun ShareSection(vm: NotesViewModel, s: AppSettings) {
         )
         Spacer(Modifier.height(8.dp))
         Pill("Regeln kopieren", selected = false, onClick = { actions.launcher.copy("Firebase-Regeln", app.voidnotes.data.FIREBASE_RULES); vm.message("Regeln kopiert") })
+    }
+}
+
+@Composable
+private fun NotionSection(vm: NotesViewModel) {
+    val c = VoidTheme.colors
+    val actions = LocalActions.current
+    Text("Aus Notion übernehmen", color = c.text, style = MaterialTheme.typography.bodyLarge)
+    Text(
+        "In Notion: Einstellungen → Allgemein (bzw. Workspace) → „Alle Workspace-Inhalte exportieren“ → Format „Markdown & CSV“, " +
+            "„Unterseiten einschließen“ und „Ordner für Unterseiten erstellen“ an. Die heruntergeladene ZIP hier auswählen. " +
+            "Übernommen werden Seiten mit Unterseiten, Bilder und Dateien, Checkboxen, Hinweise, aufklappbare Abschnitte und " +
+            "Datenbanken (als Seite mit ihren Einträgen).",
+        color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
+    )
+    Spacer(Modifier.height(10.dp))
+    val status = vm.importStatus
+    if (status != null) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(Modifier.size(18.dp), color = c.accent, strokeWidth = 2.dp)
+            Spacer(Modifier.width(10.dp))
+            Label(status, color = c.text)
+        }
+    } else {
+        Pill("Notion-Export (ZIP) importieren", selected = true, onClick = { actions.importNotion() })
     }
 }

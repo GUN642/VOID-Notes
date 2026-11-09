@@ -222,6 +222,15 @@ class Store private constructor(private val context: Context) {
     /** A fresh attachment file for a camera photo. */
     fun newPhotoFile(): File = attachment("${newId()}.jpg")
 
+    /** Copies a file from disk (e.g. an unpacked Notion export) into the attachments. */
+    fun importLocalFile(source: File): StoredFile {
+        val name = source.name
+        val ext = name.substringAfterLast('.', "").lowercase().takeIf { it.isNotEmpty() && it.length <= 8 } ?: "bin"
+        val stored = "${newId()}.$ext"
+        source.copyTo(attachment(stored), overwrite = true)
+        return StoredFile(stored, name, mimeFromName(name), source.length())
+    }
+
     /** Deletes attachments that no page or template refers to any more. */
     fun collectGarbage() {
         val used = HashSet<String>()
