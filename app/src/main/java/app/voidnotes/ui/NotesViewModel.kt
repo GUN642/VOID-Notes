@@ -805,11 +805,11 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
         commitEditor()
         importStatus = "Starte …"
         viewModelScope.launch {
-            val app = getApplication<Application>()
-            val work = File(app.cacheDir, "notion-import")
+            val ctx = getApplication<Application>()
+            val work = File(ctx.cacheDir, "notion-import")
             val r: Result<app.voidnotes.data.NotionResult> = withContext(Dispatchers.IO) {
                 val result = runCatching {
-                    val input = app.contentResolver.openInputStream(uri) ?: error("Datei kann nicht gelesen werden")
+                    val input = ctx.contentResolver.openInputStream(uri) ?: error("Datei kann nicht gelesen werden")
                     input.use { stream ->
                         app.voidnotes.data.NotionImport(store, work) { text -> importStatus = text }.run(stream)
                     }
