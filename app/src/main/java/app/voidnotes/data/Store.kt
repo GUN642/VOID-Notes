@@ -77,6 +77,17 @@ class Store private constructor(private val context: Context) {
         _templates.value = templateDir.listFiles { f -> f.name.endsWith(".json") }.orEmpty().mapNotNull { f ->
             runCatching { json.decodeFromString(Template.serializer(), f.readText()) }.getOrNull()
         }.sortedBy { it.order }
+        // Earlier imports could leave a space in front of list items, which shifted their text.
+        val trimmed = File(root, ".trim_v1")
+        if (!trimmed.exists()) {
+            val listy = setOf(BlockType.TODO, BlockType.BULLET, BlockType.NUMBERED, BlockType.TOGGLE)
+            _pages.value.values.forEach { p ->
+                if (p.blocks.any { it.type in listy && it.text.firstOrNull()?.let { ch -> ch == ' ' || ch == '\u00A0' } == true }) {
+                    put(p.copy(blocks = p.blocks.map { b -> if (b.type in listy) b.copy(text = b.text.trimStart(' ', '\u00A0')) else b }))
+                }
+            }
+            trimmed.writeText("1")
+        }
         if (pages.isEmpty() && !File(root, ".welcome").exists()) {
             File(root, ".welcome").writeText("1")
             Welcome.pages().forEach { put(it) }

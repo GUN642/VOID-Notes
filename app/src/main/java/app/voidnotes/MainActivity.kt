@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) vm.handleIntent(intent)
         setContent {
             val settings by vm.settings.collectAsStateWithLifecycle()
-            VoidNotesTheme(settings.theme, settings.accent, settings.dotHeadings, settings.dotGrid) {
+            VoidNotesTheme(settings.theme, settings.accent, settings.dotHeadings, settings.dotGrid, settings.font) {
                 VoidNotesRoot(vm)
             }
         }

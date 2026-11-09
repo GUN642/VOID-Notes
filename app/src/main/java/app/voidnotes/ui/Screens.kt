@@ -473,6 +473,34 @@ private fun SectionContent(section: SettingsSection, vm: NotesViewModel, s: AppS
                     }
                 }
             }
+            SettingsCard("Schriftart") {
+                app.voidnotes.data.AppFont.entries.forEachIndexed { i, f ->
+                    if (i > 0) CardDivider()
+                    val selected = s.font == f
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { vm.editSettings { it.copy(font = f) } }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                f.label, color = c.text,
+                                style = MaterialTheme.typography.titleLarge.copy(fontFamily = app.voidnotes.ui.theme.fontFamilyOf(f), fontWeight = FontWeight.SemiBold),
+                            )
+                            Text(
+                                f.description + " · Aa Bb 123",
+                                color = c.textMuted,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = app.voidnotes.ui.theme.fontFamilyOf(f)),
+                            )
+                        }
+                        Box(
+                            Modifier.size(22.dp).clip(CircleShape)
+                                .border(2.dp, if (selected) c.accent else c.textMuted, CircleShape)
+                                .padding(5.dp).clip(CircleShape).background(if (selected) c.accent else Color.Transparent),
+                        )
+                    }
+                }
+            }
             SettingsCard("Schrift & Breite") {
                 Text("Schriftgröße", color = c.text, style = MaterialTheme.typography.bodyLarge)
                 Spacer(Modifier.height(8.dp))

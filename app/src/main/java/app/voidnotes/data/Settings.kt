@@ -23,6 +23,15 @@ enum class Accent(val label: String, val argb: Long) {
     PINK("Pink", 0xFFFF4F8B),
 }
 
+/** Font for texts and the editor (headings can still use the dot-matrix font). */
+enum class AppFont(val label: String, val description: String) {
+    SPACE_GROTESK("Space Grotesk", "Technisch, passt zum Nothing-Stil"),
+    MANROPE("Manrope", "Modern und rund"),
+    INTER("Inter", "Neutral und sehr gut lesbar"),
+    DM_SANS("DM Sans", "Geometrisch und freundlich"),
+    SYSTEM("System", "Schrift des Geräts"),
+}
+
 enum class TextSize(val label: String, val scale: Float) { SMALL("Klein", 0.9f), NORMAL("Normal", 1f), LARGE("Groß", 1.15f), XL("Sehr groß", 1.3f) }
 
 /** How wide the text column of a page is on large screens (DeX). */
@@ -33,6 +42,7 @@ enum class NewPageMode(val label: String) { BLANK("Leere Seite"), ASK("Vorlage w
 data class AppSettings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val accent: Accent = Accent.RED,
+    val font: AppFont = AppFont.SPACE_GROTESK,
     val dotHeadings: Boolean = true,
     val dotGrid: Boolean = true,
     val textSize: TextSize = TextSize.NORMAL,
@@ -69,6 +79,7 @@ class SettingsRepository(context: Context) {
         return AppSettings(
             theme = enum("theme", d.theme),
             accent = enum("accent", d.accent),
+            font = enum("font", d.font),
             dotHeadings = prefs.getBoolean("dot_headings", d.dotHeadings),
             dotGrid = prefs.getBoolean("dot_grid", d.dotGrid),
             textSize = enum("text_size", d.textSize),
@@ -94,6 +105,7 @@ class SettingsRepository(context: Context) {
         prefs.edit()
             .putString("theme", s.theme.name)
             .putString("accent", s.accent.name)
+            .putString("font", s.font.name)
             .putBoolean("dot_headings", s.dotHeadings)
             .putBoolean("dot_grid", s.dotGrid)
             .putString("text_size", s.textSize.name)

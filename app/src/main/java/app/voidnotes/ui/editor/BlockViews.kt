@@ -156,8 +156,15 @@ private class InlineMarkdown(private val colors: VoidColors) : VisualTransformat
     override fun hashCode() = colors.hashCode()
 }
 
-fun blockStyle(type: BlockType, colors: VoidColors, scale: Float, checked: Boolean): TextStyle {
-    val base = TextStyle(color = colors.text, fontSize = (16 * scale).sp, lineHeight = (24 * scale).sp)
+fun blockStyle(type: BlockType, colors: VoidColors, scale: Float, checked: Boolean, font: androidx.compose.ui.text.font.FontFamily = androidx.compose.ui.text.font.FontFamily.Default): TextStyle {
+    // Text is centred in its line box so checkboxes and bullets line up exactly with the first line.
+    val base = TextStyle(
+        color = colors.text, fontFamily = font, fontSize = (16 * scale).sp, lineHeight = (24 * scale).sp,
+        lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+            androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+            androidx.compose.ui.text.style.LineHeightStyle.Trim.None,
+        ),
+    )
     return when (type) {
         BlockType.H1 -> base.copy(fontSize = (28 * scale).sp, lineHeight = (36 * scale).sp, fontWeight = FontWeight.Bold)
         BlockType.H2 -> base.copy(fontSize = (22 * scale).sp, lineHeight = (30 * scale).sp, fontWeight = FontWeight.SemiBold)
@@ -199,7 +206,7 @@ fun BlockField(
         if (editor.focusRequest == request) editor.focusRequest = null
     }
 
-    val style = blockStyle(b.type, c, scale, b.checked)
+    val style = blockStyle(b.type, c, scale, b.checked, app.voidnotes.ui.theme.LocalBodyFont.current)
     val transformation = remember(c) { InlineMarkdown(c) }
     BasicTextField(
         value = b.value.withSentinel(),
@@ -323,7 +330,8 @@ private fun handleKey(
 @Composable
 fun Marker(editor: EditorState, b: EditBlock, number: Int, scale: Float) {
     val c = VoidTheme.colors
-    val lineH = (blockStyle(b.type, c, scale, false).lineHeight.value).dp
+    // Same height as the first text line (sp → dp, respects the system font size).
+    val lineH = with(androidx.compose.ui.platform.LocalDensity.current) { blockStyle(b.type, c, scale, false).lineHeight.toDp() }
     Box(Modifier.width(28.dp).height(lineH), contentAlignment = Alignment.Center) {
         when (b.type) {
             BlockType.BULLET -> {

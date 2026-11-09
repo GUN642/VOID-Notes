@@ -420,7 +420,10 @@ private fun TitleField(editor: EditorState, scale: Float) {
         runCatching { requester.requestFocus() }
         if (editor.focusRequest == req) editor.focusRequest = null
     }
-    val style = TextStyle(color = c.text, fontSize = (34 * scale).sp, lineHeight = (42 * scale).sp, fontWeight = FontWeight.Bold)
+    val style = TextStyle(
+        color = c.text, fontFamily = app.voidnotes.ui.theme.LocalBodyFont.current,
+        fontSize = (34 * scale).sp, lineHeight = (42 * scale).sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp,
+    )
     BasicTextField(
         value = editor.title,
         onValueChange = { editor.onTitle(it) },

@@ -10,7 +10,7 @@ Notizen im Nothing-Stil – aufgebaut wie Notion: Seiten mit Unterseiten, Blöck
 - **Anhänge**: Dateien, Bilder aus der Galerie, Kamera-Fotos; Dateien aus anderen Apps teilen oder (DeX) hineinziehen
 - **Notion-Import**: kompletten Workspace-Export („Markdown & CSV“ als ZIP) mit Unterseiten, Bildern, Dateien und Datenbanken übernehmen (Einstellungen → Import)
 - **PDF-Export, Drucken, Teilen** (PDF, Markdown, Text), Markdown-Import, Sicherung/Wiederherstellung als ZIP
-- **Hell & Dunkel**: System, Schwarz (AMOLED), Graphit, Papier, Weiß; sieben Akzentfarben; Dot-Matrix-Überschriften
+- **Hell & Dunkel**: System, Schwarz (AMOLED), Graphit, Papier, Weiß; sieben Akzentfarben; Dot-Matrix-Überschriften; Schriftarten Space Grotesk, Manrope, Inter, DM Sans oder System
 - **Samsung DeX**: startet im Vollbild, Seitenleiste + Editor nebeneinander, Maus (Rechtsklick-Menüs, Hover), Tastenkürzel:
   - Strg+N neue Seite · Strg+Umschalt+N Unterseite · Strg+K / Strg+F Suche · Strg+P drucken · Strg+Umschalt+E PDF
   - Strg+B / I / E · Strg+Umschalt+S / H · Tab / Umschalt+Tab · Alt+↑/↓ · Strg+D · Strg+Z / Strg+Y · Strg+Enter · Umschalt+Enter · Strg+\ · Esc

@@ -265,7 +265,7 @@ class NotionImport(private val store: Store, private val workDir: File, private 
             target.startsWith("http") -> if (label == target || label.isBlank()) target else "$label ($target)"
             else -> label
         }
-    }.replace("<br>", " ").replace("&nbsp;", " ")
+    }.replace("<br>", " ").replace("&nbsp;", " ").replace('\u00A0', ' ').trim()
 
     private fun propertyFiles(line: String, dir: File): Pair<String, List<File>>? {
         val m = Regex("^([^:]{1,40}): (.+)$").find(line) ?: return null

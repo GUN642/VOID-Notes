@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import app.voidnotes.R
 import app.voidnotes.data.Accent
+import app.voidnotes.data.AppFont
 import app.voidnotes.data.ThemeMode
 
 @Immutable
@@ -58,6 +59,29 @@ val DotFont = FontFamily(
 
 val MonoFont = FontFamily(Font(R.font.space_mono, FontWeight.Normal))
 
+/** Variable font file in four weights. */
+@OptIn(ExperimentalTextApi::class)
+private fun variable(res: Int) = FontFamily(
+    listOf(400, 500, 600, 700).map { w ->
+        Font(res, weight = FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
+    },
+)
+
+private val SpaceGrotesk = variable(R.font.space_grotesk)
+private val Manrope = variable(R.font.manrope)
+private val Inter = variable(R.font.inter)
+private val DmSans = variable(R.font.dm_sans)
+
+fun fontFamilyOf(font: AppFont): FontFamily = when (font) {
+    AppFont.SPACE_GROTESK -> SpaceGrotesk
+    AppFont.MANROPE -> Manrope
+    AppFont.INTER -> Inter
+    AppFont.DM_SANS -> DmSans
+    AppFont.SYSTEM -> FontFamily.Default
+}
+
+val LocalBodyFont = staticCompositionLocalOf<FontFamily> { FontFamily.Default }
+
 val LocalVoidColors = staticCompositionLocalOf {
     VoidColors(
         Color.Black, Color(0xFF111111), Color(0xFF1C1C1C), Color.White, Color(0xFF8A8A8A),
@@ -87,8 +111,10 @@ fun VoidNotesTheme(
     accent: Accent,
     dotHeadings: Boolean,
     dotGrid: Boolean,
+    font: AppFont = AppFont.SPACE_GROTESK,
     content: @Composable () -> Unit,
 ) {
+    val body = fontFamilyOf(font)
     val systemDark = isSystemInDarkTheme()
     val colors: VoidColors
     val scheme: ColorScheme
@@ -138,13 +164,20 @@ fun VoidNotesTheme(
     }
 
     val base = Typography()
+    val heading = if (dotHeadings) DotFont else body
     val typography = Typography(
-        displayLarge = base.displayLarge.copy(fontFamily = if (dotHeadings) DotFont else FontFamily.Default),
-        headlineMedium = base.headlineMedium.copy(fontFamily = if (dotHeadings) DotFont else FontFamily.Default),
-        titleLarge = base.titleLarge.copy(fontWeight = FontWeight.Medium),
-        titleMedium = base.titleMedium,
-        bodyLarge = base.bodyLarge,
-        bodyMedium = base.bodyMedium,
+        displayLarge = base.displayLarge.copy(fontFamily = heading),
+        displayMedium = base.displayMedium.copy(fontFamily = body),
+        displaySmall = base.displaySmall.copy(fontFamily = body),
+        headlineLarge = base.headlineLarge.copy(fontFamily = body),
+        headlineMedium = base.headlineMedium.copy(fontFamily = heading),
+        headlineSmall = base.headlineSmall.copy(fontFamily = body),
+        titleLarge = base.titleLarge.copy(fontFamily = body, fontWeight = FontWeight.Medium),
+        titleMedium = base.titleMedium.copy(fontFamily = body),
+        titleSmall = base.titleSmall.copy(fontFamily = body),
+        bodyLarge = base.bodyLarge.copy(fontFamily = body),
+        bodyMedium = base.bodyMedium.copy(fontFamily = body),
+        bodySmall = base.bodySmall.copy(fontFamily = body),
         labelSmall = TextStyle(fontFamily = MonoFont, fontSize = 12.sp, letterSpacing = 0.7.sp),
         labelMedium = TextStyle(fontFamily = MonoFont, fontSize = 12.sp, letterSpacing = 0.8.sp),
         labelLarge = base.labelLarge.copy(fontFamily = MonoFont, letterSpacing = 1.sp),
@@ -154,6 +187,7 @@ fun VoidNotesTheme(
         LocalVoidColors provides colors,
         LocalDotHeadings provides dotHeadings,
         LocalDotGrid provides dotGrid,
+        LocalBodyFont provides body,
     ) {
         MaterialTheme(colorScheme = scheme, typography = typography, content = content)
     }
@@ -164,5 +198,5 @@ fun VoidNotesTheme(
 fun headingStyle(size: Int): TextStyle = if (VoidTheme.dotHeadings) {
     TextStyle(fontFamily = DotFont, fontWeight = FontWeight.Bold, fontSize = size.sp, letterSpacing = 1.sp)
 } else {
-    TextStyle(fontWeight = FontWeight.SemiBold, fontSize = (size * 0.85f).sp, letterSpacing = 0.sp)
+    TextStyle(fontFamily = LocalBodyFont.current, fontWeight = FontWeight.Bold, fontSize = (size * 0.85f).sp, letterSpacing = 0.sp)
 }
