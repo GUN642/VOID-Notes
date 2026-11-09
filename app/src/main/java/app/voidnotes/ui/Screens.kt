@@ -640,13 +640,17 @@ private fun ShareSection(vm: NotesViewModel, s: AppSettings) {
         Pill("Geteilten Link öffnen", selected = false, onClick = { vm.dialog = Dialog.OpenLink })
         Pill(if (guide) "Anleitung ausblenden" else "Anleitung", selected = false, onClick = { guide = !guide })
     }
+    Spacer(Modifier.height(12.dp))
+    LinkOpeningRow()
     if (guide) {
         Spacer(Modifier.height(12.dp))
         Text(
             "1. console.firebase.google.com öffnen → „Projekt hinzufügen“ (Google Analytics kann aus bleiben).\n" +
                 "2. Links „Realtime Database“ → „Datenbank erstellen“ → Standort z. B. Belgien (europe-west1) → „Im gesperrten Modus starten“.\n" +
                 "3. Reiter „Regeln“: den Inhalt durch die Regeln unten ersetzen → „Veröffentlichen“.\n" +
-                "4. Die Adresse oben auf der Datenseite (…firebasedatabase.app) kopieren und hier eintragen.\n\n" +
+                "4. Die Adresse oben auf der Datenseite (…firebasedatabase.app) kopieren und hier eintragen.\n" +
+                "5. Für die Webseite hinter den Links: im GitHub-Repo Settings → Pages → Source „Deploy from a branch“ → " +
+                "Branch ccr-cb163825-s6okw8, Ordner /docs → Save.\n\n" +
                 "Optional für alle künftigen Builds: im GitHub-Repo unter Settings → Secrets and variables → Actions → Variables " +
                 "die Variable VOID_FIREBASE_URL mit dieser Adresse anlegen.",
             color = c.text, style = MaterialTheme.typography.bodyMedium,

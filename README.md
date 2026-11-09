@@ -39,6 +39,7 @@ Für einen privaten Schlüssel die Secrets `VOID_KEYSTORE_BASE64`, `VOID_KEYSTOR
    }
    ```
 4. Datenbank-Adresse (`https://…firebasedatabase.app`) in der App unter Einstellungen → Teilen eintragen – oder im Repo als Actions-Variable `VOID_FIREBASE_URL` hinterlegen, dann ist sie in jeder APK eingebaut.
-5. Damit Links im Browser einen „In VOID Notes öffnen“-Knopf zeigen: Repo → Settings → Pages → Branch wählen, Ordner `/docs`.
+5. **GitHub Pages einschalten** (sonst zeigen Links eine 404-Seite): Repo → Settings → Pages → Source „Deploy from a branch“ → Branch `ccr-cb163825-s6okw8`, Ordner `/docs` → Save.
+6. Android 12+: in der App unter Einstellungen → Teilen „Links in App öffnen erlauben“ → `gun642.github.io` anhaken – dann öffnen Links direkt die App.
 
 Wer einen Link bekommt, braucht nichts einzurichten – die Datenbank-Adresse steckt im Link.

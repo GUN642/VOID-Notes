@@ -298,6 +298,7 @@ fun ShareDialog(vm: NotesViewModel, page: Page, onDismiss: () -> Unit) {
                 Pill("Kopieren", selected = false, onClick = { actions.copy("VOID Notes Link", info.link) })
                 Pill("Freigabe beenden", selected = false, onClick = { vm.dialog = Dialog.StopShare(page.id) })
             }
+            LinkOpeningRow()
             Text(
                 "Anhänge bis 3 MB werden mit geteilt. Unterseiten bleiben privat.",
                 color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
@@ -358,4 +359,36 @@ fun LinkDot(onClick: () -> Unit, modifier: Modifier = Modifier) {
         modifier.size(30.dp).clip(RoundedCornerShape(50)).border(1.dp, c.divider, RoundedCornerShape(50)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(androidx.compose.material.icons.Icons.Outlined.Link, "Geteilten Link öffnen", Modifier.size(16.dp), tint = c.textMuted) }
+}
+
+/**
+ * Status and fix for "links open in the app": on Android 12+ the link domain must be allowed once
+ * (Einstellungen → Apps → VOID Notes → Standardmäßig öffnen → Link hinzufügen).
+ */
+@Composable
+fun LinkOpeningRow() {
+    val c = VoidTheme.colors
+    val launcher = LocalActions.current.launcher
+    var approved by remember { mutableStateOf(launcher.linksApproved()) }
+    // Re-check when coming back from the system settings.
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(owner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) approved = launcher.linksApproved()
+        }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
+    if (approved == true) {
+        Label("✓ Links öffnen direkt in VOID Notes", color = c.text)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "Damit Links direkt in der App aufgehen, einmal erlauben: „Link hinzufügen“ → $LINK_HOST anhaken. " +
+                "Das gilt auch für alle, die einen Link von dir bekommen.",
+            color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
+        )
+        Pill("Links in App öffnen erlauben", selected = true, onClick = { launcher.openLinkSettings() })
+    }
 }

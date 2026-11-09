@@ -23,6 +23,8 @@ fun Context.findActivity(): Activity? {
     return null
 }
 
+const val LINK_HOST = "gun642.github.io"
+
 /** Everything that hands work to Android or other apps. */
 class Launcher(private val context: Context) {
     private fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
@@ -70,6 +72,31 @@ class Launcher(private val context: Context) {
     fun copy(label: String, text: String) {
         val cm = context.getSystemService(android.content.ClipboardManager::class.java)
         cm?.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
+    }
+
+    /**
+     * Whether share links (gun642.github.io) open straight in the app. Android 12+ asks the user to allow this
+     * once in the app settings; older versions always offer the app. Null = cannot be checked.
+     */
+    fun linksApproved(): Boolean? {
+        if (android.os.Build.VERSION.SDK_INT < 31) return true
+        return runCatching {
+            val m = context.getSystemService(android.content.pm.verify.domain.DomainVerificationManager::class.java)
+            val state = m.getDomainVerificationUserState(context.packageName) ?: return null
+            val s = state.hostToStateMap[LINK_HOST]
+            s == android.content.pm.verify.domain.DomainVerificationUserState.DOMAIN_STATE_SELECTED ||
+                s == android.content.pm.verify.domain.DomainVerificationUserState.DOMAIN_STATE_VERIFIED
+        }.getOrNull()
+    }
+
+    /** "Open by default" page of this app, where the link domain can be allowed. */
+    fun openLinkSettings() {
+        val intent = if (android.os.Build.VERSION.SDK_INT >= 31) {
+            Intent(Settings.ACTION_APP_OPEN_BY_DEFAULT_SETTINGS, Uri.parse("package:${context.packageName}"))
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+        }
+        start(intent)
     }
 
     fun openUrl(url: String) = start(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
