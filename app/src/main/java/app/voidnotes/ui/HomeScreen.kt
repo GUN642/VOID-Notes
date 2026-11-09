@@ -143,7 +143,7 @@ private fun TabPill(icon: ImageVector, label: String, selected: Boolean, modifie
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, label, Modifier.size(22.dp), tint = if (selected) c.text else c.textMuted)
+        Icon(icon, label, Modifier.size(22.dp), tint = if (selected) c.accent else c.text)
     }
 }
 
@@ -182,7 +182,7 @@ private fun BottomBar(vm: NotesViewModel, modifier: Modifier) {
         Box(
             Modifier.size(56.dp).clip(CircleShape).background(c.surface).border(1.dp, c.divider, CircleShape).clickable { vm.navigate(Screen.Search) },
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Outlined.Search, "Suchen", tint = c.text) }
+        ) { Icon(Icons.Outlined.Search, "Suchen", tint = c.accent) }
         Row(
             Modifier.weight(1f).height(56.dp).clip(RoundedCornerShape(50)).background(c.surface).border(1.dp, c.divider, RoundedCornerShape(50))
                 .clickable { vm.navigate(Screen.Search) }.padding(horizontal = 18.dp),
@@ -306,21 +306,28 @@ fun TreeRow(
     var menu by remember { mutableStateOf(false) }
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
-    val rowH: Dp = if (compact) 38.dp else 54.dp
-    Box {
+    val rowH: Dp = if (compact) 38.dp else 58.dp
+    val shape = RoundedCornerShape(if (compact) 12.dp else 18.dp)
+    Box(Modifier.padding(vertical = if (compact) 0.dp else 3.dp)) {
         Row(
-            Modifier.fillMaxWidth().height(rowH).clip(RoundedCornerShape(12.dp))
+            Modifier.fillMaxWidth().height(rowH)
+                // Nested pages are indented outside the card, so the levels stay visible.
+                .padding(start = (depth * (if (compact) 0 else 18)).dp)
+                .clip(shape)
                 .background(
                     when {
                         selected -> c.surfaceHigh
-                        hovered -> c.surface
-                        else -> Color.Transparent
+                        compact && hovered -> c.surface
+                        compact -> Color.Transparent
+                        hovered -> c.surfaceHigh
+                        else -> c.surface
                     },
                 )
+                .then(if (compact) Modifier else Modifier.border(1.dp, if (selected) c.accent else c.divider, shape))
                 .hoverable(interaction)
                 .onRightClick { menu = true }
                 .combinedClickable(onClick = { vm.openPage(page.id) }, onLongClick = { menu = true })
-                .padding(start = (depth * (if (compact) 14 else 20)).dp),
+                .padding(start = (depth * (if (compact) 14 else 0)).dp, end = if (compact) 0.dp else 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -333,7 +340,11 @@ fun TreeRow(
                     if (expanded && hasChildren) Icons.Outlined.KeyboardArrowDown else Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                     if (expanded) "Zuklappen" else "Aufklappen",
                     Modifier.size(if (compact) 18.dp else 24.dp),
-                    tint = if (hasChildren) c.textMuted else c.textMuted.copy(alpha = 0.35f),
+                    tint = when {
+                        hasChildren && expanded -> c.accent
+                        hasChildren -> c.text
+                        else -> c.textMuted.copy(alpha = 0.4f)
+                    },
                 )
             }
             Spacer(Modifier.width(if (compact) 2.dp else 6.dp))
@@ -348,11 +359,11 @@ fun TreeRow(
             )
             if (!compact || hovered || selected) {
                 Box(Modifier.size(if (compact) 28.dp else 40.dp).clip(CircleShape).clickable { menu = true }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.MoreHoriz, "Menü", Modifier.size(if (compact) 18.dp else 22.dp), tint = c.textMuted)
+                    Icon(Icons.Outlined.MoreHoriz, "Menü", Modifier.size(if (compact) 18.dp else 22.dp), tint = c.accent)
                 }
                 if (showAdd) {
                     Box(Modifier.size(if (compact) 28.dp else 40.dp).clip(CircleShape).clickable { vm.requestNewPage(page.id) }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Add, "Unterseite", Modifier.size(if (compact) 18.dp else 24.dp), tint = c.textMuted)
+                        Icon(Icons.Outlined.Add, "Unterseite", Modifier.size(if (compact) 18.dp else 24.dp), tint = c.accent)
                     }
                 }
             }

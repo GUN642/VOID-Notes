@@ -263,9 +263,9 @@ fun CrashDialog(report: String, onShare: () -> Unit, onDismiss: () -> Unit) {
 fun AddDot(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = VoidTheme.colors
     Box(
-        modifier.size(30.dp).clip(RoundedCornerShape(50)).border(1.dp, c.divider, RoundedCornerShape(50)).clickable(onClick = onClick),
+        modifier.size(34.dp).clip(RoundedCornerShape(50)).background(c.accent).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Icon(Icons.Outlined.Add, "Neu", Modifier.size(16.dp), tint = c.textMuted) }
+    ) { Icon(Icons.Outlined.Add, "Neu", Modifier.size(18.dp), tint = c.onAccent) }
 }
 
 /** Link of a shared page with copy / share buttons and the live status. */
@@ -356,9 +356,9 @@ fun SyncDot(state: app.voidnotes.data.SyncState, modifier: Modifier = Modifier) 
 fun LinkDot(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = VoidTheme.colors
     Box(
-        modifier.size(30.dp).clip(RoundedCornerShape(50)).border(1.dp, c.divider, RoundedCornerShape(50)).clickable(onClick = onClick),
+        modifier.size(34.dp).clip(RoundedCornerShape(50)).border(1.2.dp, c.accent, RoundedCornerShape(50)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Icon(androidx.compose.material.icons.Icons.Outlined.Link, "Geteilten Link öffnen", Modifier.size(16.dp), tint = c.textMuted) }
+    ) { Icon(androidx.compose.material.icons.Icons.Outlined.Link, "Geteilten Link öffnen", Modifier.size(18.dp), tint = c.accent) }
 }
 
 /**

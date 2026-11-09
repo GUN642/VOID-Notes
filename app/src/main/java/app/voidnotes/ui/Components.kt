@@ -266,9 +266,11 @@ fun SectionHeader(
         modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable(onClick = onToggle).padding(start = 4.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Label(title)
+        Box(Modifier.size(6.dp).clip(CircleShape).background(c.accent))
+        Spacer(Modifier.width(8.dp))
+        Label(title, color = c.text)
         Spacer(Modifier.width(6.dp))
-        Text(if (collapsed) "›" else "⌄", color = c.textMuted, fontSize = 12.sp, lineHeight = 12.sp)
+        Text(if (collapsed) "›" else "⌄", color = c.accent, fontSize = 13.sp, lineHeight = 13.sp)
         Spacer(Modifier.weight(1f))
         trailing()
     }
