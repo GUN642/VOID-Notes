@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and older: Google backup of notes, templates and settings (attachments are too large). -->
+<full-backup-content>
+    <include domain="file" path="notes/" />
+    <exclude domain="file" path="notes/attachments/" />
+    <include domain="sharedpref" path="settings.xml" />
+</full-backup-content>

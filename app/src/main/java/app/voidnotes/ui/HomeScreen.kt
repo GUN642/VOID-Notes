@@ -41,6 +41,7 @@ import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
@@ -105,6 +106,7 @@ fun pageMenu(vm: NotesViewModel, actions: AppActions, page: Page, inEditor: Bool
     if (!inEditor) MenuItem("Nach oben", Icons.Outlined.ArrowUpward) { vm.reorder(page.id, -1) } else null,
     if (!inEditor) MenuItem("Nach unten", Icons.Outlined.ArrowDownward) { vm.reorder(page.id, +1) } else null,
     Separator,
+    MenuItem(if (page.share != null) "Geteilt – Link anzeigen" else "Per Link teilen", Icons.Outlined.Link) { vm.startSharing(page.id) },
     MenuItem("Als Vorlage speichern", Icons.Outlined.ViewQuilt) { vm.dialog = Dialog.SaveTemplate(page.id) },
     MenuItem("Als PDF exportieren", Icons.Outlined.PictureAsPdf) { actions.exportPdf(page.id) },
     MenuItem("Drucken", Icons.Outlined.Print) { actions.print(page.id) },
@@ -246,7 +248,10 @@ fun androidx.compose.foundation.lazy.LazyListScope.pageSections(
 
     item(key = "h-private") {
         SectionHeader("Privat", "private" in settings.collapsedSections, { vm.toggleSection("private") }) {
-            AddDot({ vm.requestNewPage(null) })
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                LinkDot({ vm.dialog = Dialog.OpenLink })
+                AddDot({ vm.requestNewPage(null) })
+            }
         }
     }
     if ("private" !in settings.collapsedSections) {

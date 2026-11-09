@@ -69,6 +69,8 @@ data class Page(
     val trashed: Long = 0,
     /** Full page width instead of the reading column. */
     val wide: Boolean = false,
+    /** Shared by link: synced live through Firebase. */
+    val share: ShareInfo? = null,
 ) {
     val displayTitle: String get() = title.ifBlank { "Ohne Titel" }
     val inTrash: Boolean get() = trashed > 0
@@ -86,3 +88,20 @@ data class Template(
     val order: Long = System.currentTimeMillis(),
     val updated: Long = System.currentTimeMillis(),
 )
+
+/** Where a shared page lives online and the key that decrypts it. */
+@Serializable
+data class ShareInfo(val host: String, val id: String, val key: String) {
+    val link: String get() = "https://gun642.github.io/VOID-Notes/s/#$host/$id/$key"
+
+    companion object {
+        private val pattern = Regex("([a-z0-9.-]+\\.(?:firebaseio\\.com|firebasedatabase\\.app))/([A-Za-z0-9_-]{16,})/([A-Za-z0-9_-]{40,})")
+
+        /** Reads a share link in any of its forms (web link, app link or the bare part). */
+        fun parse(text: String): ShareInfo? {
+            val decoded = runCatching { java.net.URLDecoder.decode(text, "UTF-8") }.getOrDefault(text)
+            val m = pattern.find(decoded) ?: return null
+            return ShareInfo(m.groupValues[1], m.groupValues[2], m.groupValues[3])
+        }
+    }
+}

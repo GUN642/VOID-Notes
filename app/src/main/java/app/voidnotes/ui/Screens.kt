@@ -385,18 +385,14 @@ fun SettingsScreen(vm: NotesViewModel, s: AppSettings, wide: Boolean) {
                     Toggle("Symbol im Titel", "Emoji der Seite vor dem Titel drucken", s.pdfIncludeIcon) { v -> vm.editSettings { it.copy(pdfIncludeIcon = v) } }
                     Toggle("Fußzeile", "Seitentitel und Seitenzahl unten auf jeder Seite", s.pdfPageNumbers) { v -> vm.editSettings { it.copy(pdfPageNumbers = v) } }
 
-                    Group("Daten")
-                    Text(
-                        "Alle Notizen, Vorlagen und Anhänge liegen nur auf diesem Gerät. Eine Sicherung (ZIP) enthält alles und lässt sich " +
-                            "auf einem anderen Gerät wiederherstellen.",
-                        color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Pill("Sicherung erstellen", selected = true, onClick = { actions.backup() })
-                        Pill("Wiederherstellen", selected = false, onClick = { actions.restore() })
-                        Pill("Markdown importieren", selected = false, onClick = { actions.importMarkdown() })
-                    }
+                    Group("Import")
+                    Pill("Markdown importieren", selected = false, onClick = { actions.importMarkdown() })
+
+                    Group("Sicherung")
+                    BackupSection(vm, s)
+
+                    Group("Teilen & Zusammenarbeit")
+                    ShareSection(vm, s)
 
                     Group("Updates")
                     UpdateSection(vm, s)
@@ -556,5 +552,109 @@ fun DotBar(fraction: Float, modifier: Modifier = Modifier, dots: Int = 32) {
                 r, androidx.compose.ui.geometry.Offset(gap * i + gap / 2, size.height / 2),
             )
         }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BackupSection(vm: NotesViewModel, s: AppSettings) {
+    val c = VoidTheme.colors
+    val actions = LocalActions.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Text("Google-Sicherung", color = c.text, style = MaterialTheme.typography.bodyLarge)
+    Text(
+        "Seiten, Vorlagen und Einstellungen sichert Android automatisch in deinem Google-Konto (etwa einmal am Tag, " +
+            "wenn das Gerät lädt und im WLAN ist) und stellt sie nach einer Neuinstallation oder auf einem neuen Handy wieder her. " +
+            "Voraussetzung: Einstellungen → Google → Sicherung ist eingeschaltet. Anhänge sind wegen der Größenbegrenzung " +
+            "von 25 MB nicht dabei – dafür gibt es die automatische Sicherung in einen Ordner.",
+        color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
+    )
+    Spacer(Modifier.height(16.dp))
+    Text("Automatische Sicherung in Ordner", color = c.text, style = MaterialTheme.typography.bodyLarge)
+    Text(
+        "Komplette Sicherung mit Anhängen als ZIP, automatisch beim Verlassen der App (höchstens alle 10 Minuten, nur nach Änderungen). " +
+            "Die neuesten ${app.voidnotes.data.AutoBackup.KEEP} bleiben erhalten. Tipp: einen Ordner in Google Drive wählen " +
+            "(im Ordnerauswahl-Menü links „Drive“) – dann liegt die Sicherung in der Cloud.",
+        color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
+    )
+    Spacer(Modifier.height(10.dp))
+    if (s.autoBackupUri.isNotBlank()) {
+        val name = remember(s.autoBackupUri) { app.voidnotes.data.AutoBackup.folderName(context, s.autoBackupUri) }
+        Label("Ordner: $name", color = c.text)
+        Label(if (s.autoBackupLast > 0) "Letzte Sicherung: ${formatDate(s.autoBackupLast)}" else "Noch keine Sicherung")
+        Spacer(Modifier.height(8.dp))
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (s.autoBackupUri.isBlank()) {
+            Pill("Ordner wählen", selected = true, onClick = { actions.pickBackupFolder() })
+        } else {
+            Pill(if (vm.backupRunning) "Sichert …" else "Jetzt sichern", selected = true, onClick = { vm.autoBackup(force = true) })
+            Pill("Anderer Ordner", selected = false, onClick = { actions.pickBackupFolder() })
+            Pill("Ausschalten", selected = false, onClick = { vm.clearBackupFolder() })
+        }
+    }
+    Spacer(Modifier.height(16.dp))
+    Text("Manuell", color = c.text, style = MaterialTheme.typography.bodyLarge)
+    Spacer(Modifier.height(8.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Pill("Sicherung erstellen", selected = false, onClick = { actions.backup() })
+        Pill("Wiederherstellen", selected = false, onClick = { actions.restore() })
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ShareSection(vm: NotesViewModel, s: AppSettings) {
+    val c = VoidTheme.colors
+    val actions = LocalActions.current
+    var url by remember { mutableStateOf(s.syncUrl) }
+    var guide by remember { mutableStateOf(false) }
+    val active = vm.syncHost()
+    Text(
+        "Seiten lassen sich über ⋮ → „Per Link teilen“ freigeben. Alle mit dem Link bearbeiten live mit; der Inhalt ist " +
+            "Ende-zu-Ende verschlüsselt. Für den Abgleich braucht es eine eigene, kostenlose Firebase-Datenbank – " +
+            "wer einen Link öffnet, braucht nichts einzurichten.",
+        color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
+    )
+    Spacer(Modifier.height(10.dp))
+    Label(if (active.isBlank()) "Noch keine Datenbank eingerichtet" else "Aktiv: $active", color = if (active.isBlank()) c.accent else c.text)
+    Spacer(Modifier.height(8.dp))
+    androidx.compose.material3.OutlinedTextField(
+        url, { url = it }, singleLine = true,
+        label = { Text("Firebase-Datenbank-URL") },
+        placeholder = { Text("https://…-default-rtdb.europe-west1.firebasedatabase.app") },
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = c.accent, unfocusedBorderColor = c.divider, cursorColor = c.accent,
+            focusedTextColor = c.text, unfocusedTextColor = c.text, focusedLabelColor = c.accent, unfocusedLabelColor = c.textMuted,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(8.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Pill("Speichern", selected = url.trim() != s.syncUrl, onClick = {
+            vm.editSettings { it.copy(syncUrl = url.trim()) }
+            vm.message(if (url.isBlank()) "Datenbank entfernt" else "Datenbank gespeichert")
+        })
+        Pill("Geteilten Link öffnen", selected = false, onClick = { vm.dialog = Dialog.OpenLink })
+        Pill(if (guide) "Anleitung ausblenden" else "Anleitung", selected = false, onClick = { guide = !guide })
+    }
+    if (guide) {
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "1. console.firebase.google.com öffnen → „Projekt hinzufügen“ (Google Analytics kann aus bleiben).\n" +
+                "2. Links „Realtime Database“ → „Datenbank erstellen“ → Standort z. B. Belgien (europe-west1) → „Im gesperrten Modus starten“.\n" +
+                "3. Reiter „Regeln“: den Inhalt durch die Regeln unten ersetzen → „Veröffentlichen“.\n" +
+                "4. Die Adresse oben auf der Datenseite (…firebasedatabase.app) kopieren und hier eintragen.\n\n" +
+                "Optional für alle künftigen Builds: im GitHub-Repo unter Settings → Secrets and variables → Actions → Variables " +
+                "die Variable VOID_FIREBASE_URL mit dieser Adresse anlegen.",
+            color = c.text, style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            app.voidnotes.data.FIREBASE_RULES, color = c.textMuted, style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.surfaceHigh).padding(12.dp),
+        )
+        Spacer(Modifier.height(8.dp))
+        Pill("Regeln kopieren", selected = false, onClick = { actions.launcher.copy("Firebase-Regeln", app.voidnotes.data.FIREBASE_RULES); vm.message("Regeln kopiert") })
     }
 }

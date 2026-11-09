@@ -320,6 +320,19 @@ private fun EditorTopBar(
                 Text(template.name, color = c.text, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
             }
         }
+        if (page?.share != null) {
+            val session = vm.sync?.takeIf { it.pageId == page.id }
+            Row(
+                Modifier.clip(RoundedCornerShape(50)).border(1.dp, c.divider, RoundedCornerShape(50))
+                    .clickable { vm.dialog = Dialog.Share(page.id) }.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                app.voidnotes.ui.SyncDot(session?.state ?: app.voidnotes.data.SyncState.OFFLINE)
+                Spacer(Modifier.width(8.dp))
+                Label(session?.state?.label ?: "Geteilt", color = if (session?.state == app.voidnotes.data.SyncState.ERROR) c.accent else c.text)
+            }
+            Spacer(Modifier.width(4.dp))
+        }
         if (editor.canUndo) RoundButton(Icons.AutoMirrored.Outlined.Undo, "Rückgängig", { editor.undo() }, size = 40.dp)
         if (page != null) {
             RoundButton(
@@ -540,6 +553,7 @@ private fun BlockRow(
                     if (f != null) ImageBlock(f, b.fileName.orEmpty(), onOpen = { actions.openAttachment(b.file!!, b.mime ?: "image/*", b.fileName.orEmpty()) }, onMenu = { menu = true })
                 }
                 BlockType.FILE -> Box(Modifier.weight(1f)) {
+                    @Suppress("UNUSED_VARIABLE") val version = app.voidnotes.data.Store.fileVersion
                     val missing = b.file?.let { !vm.store.attachment(it).exists() } ?: true
                     FileBlock(b.fileName ?: "Datei", b.mime.orEmpty(), b.size, missing, onOpen = {
                         b.file?.let { actions.openAttachment(it, b.mime.orEmpty(), b.fileName.orEmpty()) }

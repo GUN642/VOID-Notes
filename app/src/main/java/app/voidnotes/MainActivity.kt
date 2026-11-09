@@ -39,6 +39,11 @@ class MainActivity : ComponentActivity() {
         return super.dispatchKeyEvent(event)
     }
 
+    override fun onStart() {
+        super.onStart()
+        vm.onStart()
+    }
+
     override fun onStop() {
         super.onStop()
         vm.onStop()

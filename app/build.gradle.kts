@@ -18,6 +18,9 @@ android {
         targetSdk = 35
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
+        // Firebase Realtime Database for shared notes (repository variable VOID_FIREBASE_URL); can also be set in the app.
+        val syncUrl = (System.getenv("VOID_FIREBASE_URL") ?: "").replace("\"", "")
+        buildConfigField("String", "SYNC_URL", "\"$syncUrl\"")
     }
 
     signingConfigs {
@@ -76,4 +79,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation("androidx.documentfile:documentfile:1.0.1")
 }

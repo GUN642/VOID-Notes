@@ -604,6 +604,39 @@ class EditorState(
         changed()
     }
 
+    /**
+     * Shows changes made by someone else (shared pages). Existing blocks keep their identity so the
+     * cursor stays where it is; the block being typed in is never overwritten.
+     */
+    fun applyExternal(newTitle: String, newIcon: String, newBlocks: List<Block>) {
+        if (focusedId != TITLE && newTitle != title.text) title = TextFieldValue(newTitle, TextRange(newTitle.length))
+        if (newIcon != icon) icon = newIcon
+        val existing = blocks.associateBy { it.id }
+        val list = newBlocks.map { nb ->
+            val eb = existing[nb.id]
+            if (eb == null) EditBlock(nb) else {
+                if (eb.id != focusedId) {
+                    eb.type = nb.type
+                    if (eb.text != nb.text) eb.value = TextFieldValue(nb.text, TextRange(nb.text.length))
+                    eb.checked = nb.checked
+                    eb.level = nb.level
+                    eb.collapsed = nb.collapsed
+                    eb.file = nb.file; eb.fileName = nb.fileName; eb.mime = nb.mime; eb.size = nb.size
+                    eb.pageId = nb.pageId; eb.emoji = nb.emoji
+                }
+                eb
+            }
+        }.toMutableList()
+        // Never lose the block being typed in, even if it was deleted elsewhere.
+        val f = existing[focusedId]
+        if (f != null && list.none { it.id == f.id }) list.add((blocks.indexOf(f)).coerceIn(0, list.size), f)
+        if (list.isEmpty()) list.add(EditBlock(Block()))
+        if (list.map { it.id } != blocks.map { it.id }) {
+            blocks.clear()
+            blocks.addAll(list)
+        }
+    }
+
     fun appendBlock(block: Block) {
         blocks.add(EditBlock(block))
         changed()

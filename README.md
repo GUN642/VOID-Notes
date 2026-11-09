@@ -13,6 +13,8 @@ Notizen im Nothing-Stil – aufgebaut wie Notion: Seiten mit Unterseiten, Blöck
 - **Samsung DeX**: startet im Vollbild, Seitenleiste + Editor nebeneinander, Maus (Rechtsklick-Menüs, Hover), Tastenkürzel:
   - Strg+N neue Seite · Strg+Umschalt+N Unterseite · Strg+K / Strg+F Suche · Strg+P drucken · Strg+Umschalt+E PDF
   - Strg+B / I / E · Strg+Umschalt+S / H · Tab / Umschalt+Tab · Alt+↑/↓ · Strg+D · Strg+Z / Strg+Y · Strg+Enter · Umschalt+Enter · Strg+\ · Esc
+- **Teilen per Link & gemeinsam bearbeiten**: Seite → ⋮ → „Per Link teilen“. Live-Abgleich über eine eigene Firebase Realtime Database, Ende-zu-Ende verschlüsselt (Schlüssel nur im Link), Anhänge bis 3 MB
+- **Sicherung**: automatisch über die Google-Sicherung von Android (Seiten, Vorlagen, Einstellungen) und optional als komplette ZIP mit Anhängen in einen Ordner deiner Wahl, z. B. Google Drive
 - **Updates in der App**: Einstellungen → Updates (lädt die neueste APK aus den GitHub-Releases)
 
 ## APK herunterladen
@@ -21,3 +23,21 @@ Jeder Push baut automatisch eine APK – zu finden unter **Releases** bzw. im Ac
 ## Signatur
 Standardmäßig wird mit dem Schlüssel in `signing/` signiert, damit Updates sich über die alte Version installieren lassen.
 Für einen privaten Schlüssel die Secrets `VOID_KEYSTORE_BASE64`, `VOID_KEYSTORE_PASSWORD`, `VOID_KEY_ALIAS` und `VOID_KEY_PASSWORD` im Repository hinterlegen.
+
+## Teilen einrichten (einmalig)
+1. [Firebase-Konsole](https://console.firebase.google.com) → Projekt hinzufügen.
+2. Realtime Database → Datenbank erstellen (z. B. europe-west1) → „gesperrter Modus“.
+3. Reiter „Regeln“ ersetzen durch:
+   ```json
+   {
+     "rules": {
+       ".read": false,
+       ".write": false,
+       "notes": { "$id": { ".read": "$id.length >= 20", ".write": "$id.length >= 20" } }
+     }
+   }
+   ```
+4. Datenbank-Adresse (`https://…firebasedatabase.app`) in der App unter Einstellungen → Teilen eintragen – oder im Repo als Actions-Variable `VOID_FIREBASE_URL` hinterlegen, dann ist sie in jeder APK eingebaut.
+5. Damit Links im Browser einen „In VOID Notes öffnen“-Knopf zeigen: Repo → Settings → Pages → Branch wählen, Ordner `/docs`.
+
+Wer einen Link bekommt, braucht nichts einzurichten – die Datenbank-Adresse steckt im Link.

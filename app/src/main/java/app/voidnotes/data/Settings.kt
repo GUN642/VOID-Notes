@@ -49,6 +49,11 @@ data class AppSettings(
     val collapsedSections: Set<String> = emptySet(),
     /** Pages expanded in the tree. */
     val expanded: Set<String> = emptySet(),
+    /** Firebase Realtime Database for shared notes (empty = the one built into the app). */
+    val syncUrl: String = "",
+    /** Folder for automatic ZIP backups (tree URI), empty = off. */
+    val autoBackupUri: String = "",
+    val autoBackupLast: Long = 0,
 )
 
 class SettingsRepository(context: Context) {
@@ -77,6 +82,9 @@ class SettingsRepository(context: Context) {
             pdfPageNumbers = prefs.getBoolean("pdf_numbers", d.pdfPageNumbers),
             collapsedSections = prefs.getStringSet("collapsed_sections", null)?.toSet() ?: d.collapsedSections,
             expanded = prefs.getStringSet("expanded", null)?.toSet() ?: d.expanded,
+            syncUrl = prefs.getString("sync_url", d.syncUrl) ?: d.syncUrl,
+            autoBackupUri = prefs.getString("auto_backup_uri", d.autoBackupUri) ?: d.autoBackupUri,
+            autoBackupLast = prefs.getLong("auto_backup_last", d.autoBackupLast),
         )
     }
 
@@ -99,6 +107,9 @@ class SettingsRepository(context: Context) {
             .putBoolean("pdf_numbers", s.pdfPageNumbers)
             .putStringSet("collapsed_sections", s.collapsedSections)
             .putStringSet("expanded", s.expanded)
+            .putString("sync_url", s.syncUrl)
+            .putString("auto_backup_uri", s.autoBackupUri)
+            .putLong("auto_backup_last", s.autoBackupLast)
             .apply()
     }
 }

@@ -54,7 +54,13 @@ class AppActions(
     private val createBackup: () -> Unit,
     private val openBackup: () -> Unit,
     private val openMarkdown: () -> Unit,
+    private val pickFolder: () -> Unit,
 ) {
+    fun pickBackupFolder() = pickFolder()
+    fun copy(label: String, text: String) {
+        launcher.copy(label, text)
+        vm.message("Link kopiert")
+    }
     fun attachFiles() = pickFiles()
     fun attachImages() = pickImages()
     fun takePhoto() = camera(vm.newPhotoTarget())
@@ -100,6 +106,7 @@ fun VoidNotesRoot(vm: NotesViewModel) {
     val createZip = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> uri?.let(vm::backupTo) }
     val openZip = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(vm::restoreFrom) }
     val openMd = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { vm.importMarkdown(it) }
+    val openTree = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { vm.setBackupFolder(it) }
 
     val actions = remember(vm) {
         AppActions(
@@ -115,6 +122,7 @@ fun VoidNotesRoot(vm: NotesViewModel) {
             },
             openBackup = { runCatching { openZip.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed")) } },
             openMarkdown = { runCatching { openMd.launch(arrayOf("text/markdown", "text/plain", "text/x-markdown", "application/octet-stream")) } },
+            pickFolder = { runCatching { openTree.launch(null) } },
         )
     }
 
@@ -231,7 +239,10 @@ private fun StartupDialogs(vm: NotesViewModel) {
 private fun Dialogs(vm: NotesViewModel, pages: Map<String, Page>, templates: List<Template>) {
     val dismiss = { vm.dialog = null }
     vm.newPageParent?.let { parent ->
-        TemplatePickerDialog(templates, onDismiss = { vm.newPageParent = null }) { t -> vm.newPage(parent.ifEmpty { null }, t) }
+        TemplatePickerDialog(
+            templates, onDismiss = { vm.newPageParent = null },
+            onOpenLink = if (parent.isEmpty()) ({ vm.newPageParent = null; vm.dialog = Dialog.OpenLink }) else null,
+        ) { t -> vm.newPage(parent.ifEmpty { null }, t) }
     }
     when (val d = vm.dialog) {
         null -> {}
@@ -280,6 +291,15 @@ private fun Dialogs(vm: NotesViewModel, pages: Map<String, Page>, templates: Lis
                 e.checkpoint(); b.emoji = emoji.ifBlank { "💡" }; e.changed(); dismiss()
             }
         }
+        is Dialog.Share -> {
+            val p = pages[d.id] ?: return dismiss()
+            ShareDialog(vm, p, dismiss)
+        }
+        is Dialog.StopShare -> {
+            val p = pages[d.id] ?: return dismiss()
+            StopShareDialog(vm, p, dismiss)
+        }
+        Dialog.OpenLink -> OpenLinkDialog(vm, dismiss)
         is Dialog.RenameFile -> {
             val b = vm.editor?.block(d.blockId) ?: return dismiss()
             TextInputDialog("Umbenennen", b.fileName.orEmpty(), "Speichern", onDismiss = dismiss) { vm.renameAttachment(d.blockId, it); dismiss() }

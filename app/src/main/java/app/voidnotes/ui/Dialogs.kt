@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -146,10 +147,11 @@ fun EmojiDialog(current: String, onDismiss: () -> Unit, allowRemove: Boolean = t
 
 /** Choose how a new page starts: empty or from a template. */
 @Composable
-fun TemplatePickerDialog(templates: List<Template>, onDismiss: () -> Unit, onPick: (Template?) -> Unit) {
+fun TemplatePickerDialog(templates: List<Template>, onDismiss: () -> Unit, onOpenLink: (() -> Unit)? = null, onPick: (Template?) -> Unit) {
     VoidDialog("Neue Seite", onDismiss, null, {}) {
         Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
             TemplateRow(icon = "📄", name = "Leere Seite", description = "Ohne Vorlage beginnen") { onPick(null) }
+            onOpenLink?.let { open -> TemplateRow(icon = "🔗", name = "Geteilten Link öffnen", description = "Notiz, die jemand mit dir geteilt hat") { open() } }
             templates.forEach { t -> TemplateRow(t.icon, t.name, t.description) { onPick(t) } }
         }
     }
@@ -263,4 +265,96 @@ fun AddDot(onClick: () -> Unit, modifier: Modifier = Modifier) {
         modifier.size(30.dp).clip(RoundedCornerShape(50)).border(1.dp, c.divider, RoundedCornerShape(50)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(Icons.Outlined.Add, "Neu", Modifier.size(16.dp), tint = c.textMuted) }
+}
+
+/** Link of a shared page with copy / share buttons and the live status. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ShareDialog(vm: NotesViewModel, page: Page, onDismiss: () -> Unit) {
+    val c = VoidTheme.colors
+    val actions = LocalActions.current
+    val info = page.share ?: return onDismiss()
+    val session = vm.sync?.takeIf { it.pageId == page.id }
+    VoidDialog("Teilen", onDismiss, "Link teilen", { actions.launcher.shareText("VOID Notes: ${page.displayTitle}", info.link) }, dismissText = "Schließen") {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                "Jeder mit diesem Link kann die Seite live mitlesen und mitbearbeiten. Der Inhalt ist Ende-zu-Ende verschlüsselt – " +
+                    "der Schlüssel steckt nur im Link. Teile ihn also nur mit Personen, denen du vertraust.",
+                color = c.text, style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                info.link, color = c.textMuted, style = MaterialTheme.typography.labelSmall, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.surfaceHigh).padding(12.dp),
+            )
+            if (session != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SyncDot(session.state)
+                    Spacer(Modifier.width(8.dp))
+                    Label(session.error ?: session.state.label)
+                }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Pill("Kopieren", selected = false, onClick = { actions.copy("VOID Notes Link", info.link) })
+                Pill("Freigabe beenden", selected = false, onClick = { vm.dialog = Dialog.StopShare(page.id) })
+            }
+            Text(
+                "Anhänge bis 3 MB werden mit geteilt. Unterseiten bleiben privat.",
+                color = c.textMuted, style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+fun StopShareDialog(vm: NotesViewModel, page: Page, onDismiss: () -> Unit) {
+    val c = VoidTheme.colors
+    VoidDialog("Freigabe beenden", onDismiss, "Für alle löschen", { vm.stopSharing(page.id, deleteOnline = true); onDismiss() }) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                "„Für alle löschen“ entfernt die Online-Kopie – der Link funktioniert dann für niemanden mehr. " +
+                    "„Nur hier“ trennt nur dieses Gerät; die anderen arbeiten weiter. Deine Seite bleibt in beiden Fällen erhalten.",
+                color = c.text, style = MaterialTheme.typography.bodyMedium,
+            )
+            Pill("Nur hier trennen", selected = false, onClick = { vm.stopSharing(page.id, deleteOnline = false); onDismiss() })
+        }
+    }
+}
+
+/** Paste a link someone shared. */
+@Composable
+fun OpenLinkDialog(vm: NotesViewModel, onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clip = remember {
+        runCatching {
+            context.getSystemService(android.content.ClipboardManager::class.java)?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
+        }.getOrNull()?.takeIf { app.voidnotes.data.ShareInfo.parse(it) != null }.orEmpty()
+    }
+    var value by remember { mutableStateOf(clip) }
+    VoidDialog("Link öffnen", onDismiss, "Öffnen", { if (vm.joinLink(value)) onDismiss() }, confirmEnabled = value.isNotBlank()) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Füge den Link einer geteilten Notiz ein.", color = VoidTheme.colors.text)
+            OutlinedTextField(value, { value = it }, singleLine = true, label = { Text("Link") }, colors = fieldColors(), modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+fun SyncDot(state: app.voidnotes.data.SyncState, modifier: Modifier = Modifier) {
+    val c = VoidTheme.colors
+    val color = when (state) {
+        app.voidnotes.data.SyncState.ONLINE -> androidx.compose.ui.graphics.Color(0xFF34C759)
+        app.voidnotes.data.SyncState.ERROR -> c.accent
+        else -> c.textMuted
+    }
+    Box(modifier.size(8.dp).clip(RoundedCornerShape(50)).background(color))
+}
+
+/** Small round link button (open a shared note). */
+@Composable
+fun LinkDot(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val c = VoidTheme.colors
+    Box(
+        modifier.size(30.dp).clip(RoundedCornerShape(50)).border(1.dp, c.divider, RoundedCornerShape(50)).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(androidx.compose.material.icons.Icons.Outlined.Link, "Geteilten Link öffnen", Modifier.size(16.dp), tint = c.textMuted) }
 }

@@ -67,6 +67,11 @@ class Launcher(private val context: Context) {
         start(Intent.createChooser(intent, "Teilen"))
     }
 
+    fun copy(label: String, text: String) {
+        val cm = context.getSystemService(android.content.ClipboardManager::class.java)
+        cm?.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
+    }
+
     fun openUrl(url: String) = start(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
 
     /** System print dialog for a rendered PDF (also offers "Als PDF speichern"). */

@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,6 +38,11 @@ class Store private constructor(private val context: Context) {
     private val pageDir = File(root, "pages")
     private val templateDir = File(root, "templates")
     val attachmentDir = File(root, "attachments")
+    private val syncDir = File(root, "sync")
+
+    /** Time of the last change to any page or template (for the automatic backup). */
+    @Volatile var lastChange: Long = 0L
+        private set
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false; prettyPrint = false }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -94,7 +101,7 @@ class Store private constructor(private val context: Context) {
     fun deleteForever(ids: Collection<String>) {
         _pages.update { it - ids.toSet() }
         scope.launch {
-            ids.forEach { File(pageDir, "$it.json").delete() }
+            ids.forEach { File(pageDir, "$it.json").delete(); File(syncDir, "$it.json").delete() }
             collectGarbage()
         }
     }
@@ -122,6 +129,7 @@ class Store private constructor(private val context: Context) {
     // ------------------------------------------------------------------ writing
 
     private fun markDirty(id: String, template: Boolean) {
+        lastChange = System.currentTimeMillis()
         synchronized(lock) {
             if (template) dirtyTemplates += id else dirtyPages += id
             if (writing) return
@@ -167,6 +175,21 @@ class Store private constructor(private val context: Context) {
     private fun writePage(p: Page) = runCatching { writeAtomic(File(pageDir, "${p.id}.json"), json.encodeToString(Page.serializer(), p)) }
     private fun writeTemplate(t: Template) =
         runCatching { writeAtomic(File(templateDir, "${t.id}.json"), json.encodeToString(Template.serializer(), t)) }
+
+    // ------------------------------------------------------------------ sync memory
+
+    fun loadSync(pageId: String): SyncMemory = runCatching {
+        json.decodeFromString(SyncMemory.serializer(), File(syncDir, "$pageId.json").readText())
+    }.getOrDefault(SyncMemory())
+
+    fun saveSync(pageId: String, memory: SyncMemory) {
+        val text = json.encodeToString(SyncMemory.serializer(), memory)
+        scope.launch { runCatching { syncDir.mkdirs(); writeAtomic(File(syncDir, "$pageId.json"), text) } }
+    }
+
+    fun deleteSync(pageId: String) {
+        scope.launch { File(syncDir, "$pageId.json").delete() }
+    }
 
     // ------------------------------------------------------------------ attachments
 
@@ -223,6 +246,7 @@ class Store private constructor(private val context: Context) {
             add(pageDir, "pages/")
             add(templateDir, "templates/")
             add(attachmentDir, "attachments/")
+            add(syncDir, "sync/")
         }
     }
 
@@ -237,6 +261,7 @@ class Store private constructor(private val context: Context) {
                     e.name.startsWith("pages/") -> pageDir
                     e.name.startsWith("templates/") -> templateDir
                     e.name.startsWith("attachments/") -> attachmentDir
+                    e.name.startsWith("sync/") -> syncDir.also { it.mkdirs() }
                     else -> null
                 } ?: continue
                 val fileName = e.name.substringAfterLast('/')
@@ -256,6 +281,9 @@ class Store private constructor(private val context: Context) {
 
     companion object {
         @Volatile private var instance: Store? = null
+
+        /** Bumped when an attachment arrives later (shared pages), so pictures redraw. */
+        var fileVersion by androidx.compose.runtime.mutableIntStateOf(0)
 
         fun get(context: Context): Store = instance ?: synchronized(this) {
             instance ?: Store(context.applicationContext).also { instance = it }

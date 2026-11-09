@@ -45,6 +45,7 @@ jobs:
           VOID_KEYSTORE_PASSWORD: ${{ secrets.VOID_KEYSTORE_PASSWORD }}
           VOID_KEY_ALIAS: ${{ secrets.VOID_KEY_ALIAS }}
           VOID_KEY_PASSWORD: ${{ secrets.VOID_KEY_PASSWORD }}
+          VOID_FIREBASE_URL: ${{ vars.VOID_FIREBASE_URL }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease

@@ -11,6 +11,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.voidnotes.BuildConfig
 import app.voidnotes.data.AppSettings
+import app.voidnotes.data.AutoBackup
+import app.voidnotes.data.Crypto
+import app.voidnotes.data.ShareInfo
+import app.voidnotes.data.SyncSession
+import app.voidnotes.data.normalizeHost
 import app.voidnotes.data.Block
 import app.voidnotes.data.BlockType
 import app.voidnotes.data.MarkdownIO
@@ -65,6 +70,9 @@ sealed interface Dialog {
     data object EditorIcon : Dialog
     data class CalloutEmoji(val blockId: String) : Dialog
     data class RenameFile(val blockId: String) : Dialog
+    data class Share(val id: String) : Dialog
+    data class StopShare(val id: String) : Dialog
+    data object OpenLink : Dialog
 }
 
 sealed interface UiEvent {
@@ -155,7 +163,10 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
             is EditTarget.PageTarget -> {
                 val p = store.page(target.id) ?: run { stack = stack.dropLast(1); return }
                 store.update(p.id) { it.copy(opened = System.currentTimeMillis()) }
-                EditorState(target, p.title, p.icon, p.blocks.ifEmpty { listOf(Block()) }, ::scheduleSave)
+                EditorState(target, p.title, p.icon, p.blocks.ifEmpty { listOf(Block()) }, ::scheduleSave).also {
+                    editor = it
+                    startSync(p)
+                }
             }
             is EditTarget.TemplateTarget -> {
                 val t = store.templates.value.firstOrNull { it.id == target.id } ?: run { stack = stack.dropLast(1); return }
@@ -166,6 +177,7 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun closeEditor() {
         commitEditor()
+        stopSync()
         editor = null
     }
 
@@ -198,6 +210,7 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
                 val p = store.page(t.id) ?: return
                 if (p.blocks == blocks && p.title == title && p.icon == e.icon) return
                 store.put(p.copy(title = title, icon = e.icon, blocks = blocks, updated = System.currentTimeMillis()))
+                if (sync?.pageId == p.id) sync?.localChanged()
             }
             is EditTarget.TemplateTarget -> {
                 val tp = store.templates.value.firstOrNull { it.id == t.id } ?: return
@@ -210,6 +223,145 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
     fun onStop() {
         commitEditor()
         store.flush()
+        sync?.stop()
+        autoBackup(force = false)
+    }
+
+    fun onStart() {
+        sync?.start()
+    }
+
+    // ------------------------------------------------------------------ sharing (Firebase)
+
+    /** Live sync of the open shared page. */
+    var sync by mutableStateOf<SyncSession?>(null)
+        private set
+
+    /** Database used for new shares: from the settings or built into the app. */
+    fun syncHost(): String = normalizeHost(current.syncUrl.ifBlank { BuildConfig.SYNC_URL })
+
+    private fun startSync(p: Page) {
+        stopSync()
+        val info = p.share ?: return
+        sync = SyncSession(
+            p.id, info, store, viewModelScope,
+            local = {
+                commitEditor()
+                store.page(p.id)
+            },
+            apply = { merged ->
+                store.put(merged)
+                editor?.takeIf { it.target == EditTarget.PageTarget(p.id) }?.applyExternal(merged.title, merged.icon, merged.blocks)
+            },
+            focused = { editor?.focusedId },
+        ).also { it.start() }
+    }
+
+    private fun stopSync() {
+        sync?.stop()
+        sync = null
+    }
+
+    fun startSharing(id: String) {
+        val host = syncHost()
+        if (host.isBlank()) {
+            message("Erst unter Einstellungen → Teilen die Firebase-Datenbank eintragen")
+            navigate(Screen.Settings)
+            return
+        }
+        commitEditor()
+        val p = store.page(id) ?: return
+        if (p.share == null) {
+            val info = ShareInfo(host, Crypto.newId(), Crypto.newKey())
+            store.saveSync(id, app.voidnotes.data.SyncMemory())
+            store.put(p.copy(share = info))
+            if (editor?.target == EditTarget.PageTarget(id)) store.page(id)?.let { startSync(it) }
+        }
+        dialog = Dialog.Share(id)
+    }
+
+    fun stopSharing(id: String, deleteOnline: Boolean) {
+        val p = store.page(id) ?: return
+        val info = p.share ?: return
+        if (sync?.pageId == id) stopSync()
+        store.put(p.copy(share = null))
+        store.deleteSync(id)
+        if (deleteOnline) {
+            viewModelScope.launch {
+                val r = withContext(Dispatchers.IO) { runCatching { SyncSession.deleteRemote(info) } }
+                message(if (r.isSuccess) "Online-Kopie gelöscht – der Link funktioniert nicht mehr" else "Online-Kopie konnte nicht gelöscht werden: ${r.exceptionOrNull()?.message}")
+            }
+        } else {
+            message("Freigabe auf diesem Gerät beendet")
+        }
+    }
+
+    /** Opens a share link: joins the note (or opens it when it is already here). */
+    fun joinLink(text: String?): Boolean {
+        val info = text?.let { ShareInfo.parse(it) } ?: run {
+            message("Das ist kein gültiger VOID-Notes-Link"); return false
+        }
+        val existing = store.pages.value.values.firstOrNull { it.share?.id == info.id && !it.inTrash }
+        if (existing != null) {
+            openPage(existing.id); return true
+        }
+        commitEditor()
+        val page = Page(
+            title = "Geteilte Notiz", icon = "🔗", share = info, blocks = listOf(Block()),
+            order = (children(null).maxOfOrNull { it.order } ?: 0L) + 1,
+        )
+        store.put(page)
+        navigate(Screen.PageScreen(page.id))
+        message("Geteilte Notiz wird geladen …")
+        return true
+    }
+
+    // ------------------------------------------------------------------ automatic backup
+
+    var backupRunning by mutableStateOf(false)
+        private set
+
+    /** Full ZIP into the chosen folder; on leaving the app at most every 10 minutes, and only after changes. */
+    fun autoBackup(force: Boolean) {
+        val uri = current.autoBackupUri
+        if (uri.isBlank() || backupRunning) return
+        val latest = maxOf(
+            store.lastChange,
+            store.pages.value.values.maxOfOrNull { it.updated } ?: 0L,
+            store.templates.value.maxOfOrNull { it.updated } ?: 0L,
+        )
+        val now = System.currentTimeMillis()
+        if (!force && (latest <= current.autoBackupLast || now - current.autoBackupLast < 10 * 60_000L)) return
+        backupRunning = true
+        viewModelScope.launch {
+            val r = withContext(Dispatchers.IO) { runCatching { AutoBackup.run(getApplication(), store, uri) } }
+            backupRunning = false
+            r.onSuccess {
+                editSettings { it.copy(autoBackupLast = System.currentTimeMillis()) }
+                if (force) message("Gesichert: $it")
+            }.onFailure { message("Automatische Sicherung fehlgeschlagen: ${it.message}") }
+        }
+    }
+
+    fun setBackupFolder(uri: Uri?) {
+        if (uri == null) return
+        runCatching {
+            getApplication<Application>().contentResolver.takePersistableUriPermission(
+                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        editSettings { it.copy(autoBackupUri = uri.toString(), autoBackupLast = 0) }
+        autoBackup(force = true)
+    }
+
+    fun clearBackupFolder() {
+        val old = current.autoBackupUri
+        runCatching {
+            getApplication<Application>().contentResolver.releasePersistableUriPermission(
+                Uri.parse(old), Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        editSettings { it.copy(autoBackupUri = "") }
     }
 
     /** Changes a page; goes through the editor when that page is open. */
@@ -334,7 +486,7 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
         commitEditor()
         val p = store.page(id) ?: return
         val copy = p.copy(
-            id = newId(), title = if (p.title.isBlank()) "" else p.title + " (Kopie)", favorite = false,
+            id = newId(), title = if (p.title.isBlank()) "" else p.title + " (Kopie)", favorite = false, share = null,
             blocks = p.blocks.filterNot { it.type == BlockType.PAGE }.map { it.copy(id = newId()) },
             created = System.currentTimeMillis(), updated = System.currentTimeMillis(), order = p.order + 1, opened = 0,
         )
@@ -534,11 +686,13 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
     fun handleIntent(intent: Intent?) {
         intent ?: return
         when (intent.action) {
+            Intent.ACTION_VIEW -> joinLink(intent.dataString)
             Intent.ACTION_SEND -> {
                 val stream = intent.parcelable<Uri>(Intent.EXTRA_STREAM)
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                 val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
                 if (stream != null) attach(listOf(stream), forcePage = true)
+                else if (text != null && ShareInfo.parse(text) != null) joinLink(text)
                 else if (!text.isNullOrBlank()) newPageFromText(subject, text)
             }
             Intent.ACTION_SEND_MULTIPLE -> {

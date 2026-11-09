@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>VOID Notes – geteilte Notiz</title>
+<style>
+  :root { --bg:#000; --fg:#f2f2f2; --muted:#8c8c8c; --line:rgba(255,255,255,.12); --accent:#d71921; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f7f6f3; --fg:#111; --muted:#6b6b6b; --line:rgba(0,0,0,.12); } }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif;
+         background-image:radial-gradient(var(--line) 1.2px, transparent 1.3px); background-size:22px 22px;
+         display:flex; align-items:flex-end; }
+  main { padding:32px 24px 48px; max-width:560px; }
+  h1 { font:700 56px/1 ui-monospace, monospace; letter-spacing:2px; margin:0; }
+  h1 span { color:var(--accent); }
+  .label { font:12px ui-monospace, monospace; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin:6px 0 28px; }
+  p { margin:0 0 24px; }
+  a.btn { display:inline-block; padding:16px 28px; border-radius:999px; background:var(--accent); color:#fff; text-decoration:none;
+          font:700 13px ui-monospace, monospace; letter-spacing:1px; text-transform:uppercase; margin:0 8px 12px 0; }
+  a.ghost { background:transparent; color:var(--fg); border:1px solid var(--line); }
+  .err { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>VOID<span>.</span></h1>
+  <div class="label">Notes · geteilte Notiz</div>
+  <p id="text">Jemand hat eine Notiz mit dir geteilt. Öffne sie in VOID Notes, um sie zu lesen und gemeinsam zu bearbeiten.
+     Der Inhalt ist verschlüsselt – der Schlüssel steckt nur in diesem Link und wird nicht an den Server gesendet.</p>
+  <a class="btn" id="open" href="#">In VOID Notes öffnen</a>
+  <a class="btn ghost" href="https://github.com/GUN642/VOID-Notes/releases">App herunterladen</a>
+</main>
+<script>
+  var d = location.hash.replace(/^#/, "");
+  var open = document.getElementById("open");
+  if (!/^[a-z0-9.-]+\/[A-Za-z0-9_-]{16,}\/[A-Za-z0-9_-]{40,}$/.test(d)) {
+    document.getElementById("text").innerHTML = '<span class="err">Dieser Link ist unvollständig.</span> Bitte den ganzen Link kopieren.';
+    open.style.display = "none";
+  } else {
+    var q = "s?d=" + encodeURIComponent(d);
+    var android = /Android/i.test(navigator.userAgent);
+    open.href = android
+      ? "intent://" + q + "#Intent;scheme=voidnotes;package=app.voidnotes;end"
+      : "voidnotes://" + q;
+  }
+</script>
+</body>
+</html>
