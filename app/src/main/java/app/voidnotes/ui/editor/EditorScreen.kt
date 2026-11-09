@@ -128,6 +128,7 @@ import app.voidnotes.ui.NotesViewModel
 import app.voidnotes.ui.Pill
 import app.voidnotes.ui.RoundButton
 import app.voidnotes.ui.Screen
+import app.voidnotes.ui.Separator
 import app.voidnotes.ui.VoidMenu
 import app.voidnotes.ui.findActivity
 import app.voidnotes.ui.pageMenu
@@ -341,13 +342,13 @@ private fun EditorTopBar(
                     MenuItem("Datei anhängen", Icons.Outlined.AttachFile) { actions.attachFiles() },
                     MenuItem("Bild einfügen", Icons.Outlined.Image) { actions.attachImages() },
                     MenuItem("Foto aufnehmen", Icons.Outlined.PhotoCamera) { actions.takePhoto() },
-                    null,
+                    Separator,
                     MenuItem("PDF teilen", Icons.Outlined.Share) { actions.sharePdf(page.id) },
                     MenuItem("Als Markdown teilen", Icons.Outlined.Share) { actions.shareMarkdown(page.id) },
                     MenuItem("Als Text teilen", Icons.Outlined.Share) { actions.shareText(page.id) },
                     MenuItem("Als Markdown exportieren", Icons.Outlined.Notes) { actions.exportMarkdown(page.id) },
                     MenuItem(if (page.wide) "Normale Breite" else "Volle Breite", Icons.Outlined.OpenInFull) { vm.toggleWide(page.id) },
-                    null,
+                    Separator,
                 ) + pageMenu(vm, actions, page, inEditor = true)
                 template != null -> listOf(
                     MenuItem("Name & Beschreibung", Icons.Outlined.DriveFileRenameOutline) { vm.dialog = Dialog.TemplateInfo(template.id) },

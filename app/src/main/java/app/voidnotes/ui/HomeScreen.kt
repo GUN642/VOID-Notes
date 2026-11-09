@@ -104,11 +104,11 @@ fun pageMenu(vm: NotesViewModel, actions: AppActions, page: Page, inEditor: Bool
     MenuItem("Verschieben nach …", Icons.AutoMirrored.Outlined.DriveFileMove) { vm.dialog = Dialog.Move(page.id) },
     if (!inEditor) MenuItem("Nach oben", Icons.Outlined.ArrowUpward) { vm.reorder(page.id, -1) } else null,
     if (!inEditor) MenuItem("Nach unten", Icons.Outlined.ArrowDownward) { vm.reorder(page.id, +1) } else null,
-    null,
+    Separator,
     MenuItem("Als Vorlage speichern", Icons.Outlined.ViewQuilt) { vm.dialog = Dialog.SaveTemplate(page.id) },
     MenuItem("Als PDF exportieren", Icons.Outlined.PictureAsPdf) { actions.exportPdf(page.id) },
     MenuItem("Drucken", Icons.Outlined.Print) { actions.print(page.id) },
-    null,
+    Separator,
     MenuItem("In den Papierkorb", Icons.Outlined.DeleteOutline, danger = true) { vm.trash(page.id) },
 )
 

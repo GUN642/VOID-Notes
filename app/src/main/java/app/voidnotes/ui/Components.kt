@@ -211,6 +211,9 @@ fun VoidDialog(
 /** An entry of a [VoidMenu]. */
 data class MenuItem(val label: String, val icon: ImageVector?, val danger: Boolean = false, val enabled: Boolean = true, val action: () -> Unit)
 
+/** Divider line in a menu (also usable inside listOfNotNull). */
+val Separator = MenuItem("", null) {}
+
 @Composable
 fun VoidMenu(expanded: Boolean, onDismiss: () -> Unit, items: List<MenuItem?>, offset: DpOffset = DpOffset(0.dp, 0.dp)) {
     val c = VoidTheme.colors
@@ -222,7 +225,7 @@ fun VoidMenu(expanded: Boolean, onDismiss: () -> Unit, items: List<MenuItem?>, o
         shape = RoundedCornerShape(16.dp),
     ) {
         items.forEach { item ->
-            if (item == null) {
+            if (item == null || item === Separator) {
                 Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(1.dp).background(c.divider))
                 return@forEach
             }

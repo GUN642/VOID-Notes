@@ -165,10 +165,11 @@ fun VoidNotesRoot(vm: NotesViewModel) {
     androidx.compose.runtime.CompositionLocalProvider(LocalActions provides actions) {
         BoxWithConstraints(Modifier.fillMaxSize().background(c.background)) {
             val wide = maxWidth >= 840.dp
+            val sidebarWidth = if (maxWidth > 1300.dp) 320.dp else 280.dp
             if (wide) {
                 Row(Modifier.fillMaxSize()) {
                     if (settings.sidebar) {
-                        Sidebar(vm, pages, settings, Modifier.width(if (maxWidth > 1300.dp) 320.dp else 280.dp).fillMaxHeight())
+                        Sidebar(vm, pages, settings, Modifier.width(sidebarWidth).fillMaxHeight())
                         Box(Modifier.width(1.dp).fillMaxHeight().background(c.divider))
                     }
                     Box(Modifier.weight(1f).fillMaxHeight()) { Content(vm, pages, templates, settings, wide = true) }

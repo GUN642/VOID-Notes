@@ -385,7 +385,7 @@ private val imageCache = object : LruCache<String, Bitmap>(32 * 1024 * 1024) {
 fun ImageBlock(file: File, name: String, onOpen: () -> Unit, onMenu: () -> Unit) {
     val c = VoidTheme.colors
     val key = file.absolutePath
-    val bmp by produceState(imageCache.get(key), key) {
+    val bmp by produceState<Bitmap?>(imageCache.get(key), key) {
         if (value != null) return@produceState
         value = withContext(Dispatchers.IO) { PdfWriter.decode(file, 1600)?.also { imageCache.put(key, it) } }
     }
