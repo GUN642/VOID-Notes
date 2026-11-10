@@ -202,7 +202,11 @@ class EditorState(
         if (textChanged) changed()
     }
 
+    /** A text field can still report a change right after its block was removed (focus moving on). */
+    private fun gone(b: EditBlock) = index(b.id) < 0
+
     fun onText(b: EditBlock, new: TextFieldValue) {
+        if (gone(b)) return
         val old = b.value
         if (new.text == old.text) {
             b.value = new
@@ -274,6 +278,7 @@ class EditorState(
     }
 
     private fun enter(b: EditBlock, before: String, after: String) {
+        if (gone(b)) return
         slashFor = null
         val listish = b.type in setOf(BlockType.BULLET, BlockType.NUMBERED, BlockType.TODO, BlockType.TOGGLE, BlockType.QUOTE, BlockType.CALLOUT)
         // Enter on an empty list item ends the list (or steps out one level).
@@ -306,6 +311,7 @@ class EditorState(
 
     /** Backspace at the very start of a block. */
     fun backspaceAtStart(b: EditBlock) {
+        if (gone(b)) return
         checkpoint()
         slashFor = null
         if (b.type != BlockType.TEXT && b.type.hasText) {
@@ -343,6 +349,7 @@ class EditorState(
 
     /** Soft line break inside a block (Shift+Enter). */
     fun insertText(b: EditBlock, s: String) {
+        if (gone(b)) return
         checkpoint("text:" + b.id)
         val v = b.value
         val t = v.text.replaceRange(v.selection.min, v.selection.max, s)
@@ -429,6 +436,7 @@ class EditorState(
     // ------------------------------------------------------------------ block operations
 
     fun setType(b: EditBlock, type: BlockType, record: Boolean = true) {
+        if (gone(b)) return
         if (record) checkpoint()
         if (type == BlockType.DIVIDER) {
             val keepText = b.text
@@ -449,12 +457,14 @@ class EditorState(
     }
 
     fun toggleChecked(b: EditBlock) {
+        if (gone(b)) return
         checkpoint()
         b.checked = !b.checked
         changed()
     }
 
     fun toggleCollapsed(b: EditBlock) {
+        if (gone(b)) return
         checkpoint()
         b.collapsed = !b.collapsed
         if (b.collapsed) {
@@ -488,6 +498,7 @@ class EditorState(
     }
 
     fun outdent(b: EditBlock) {
+        if (gone(b)) return
         if (b.level == 0) return
         checkpoint()
         shiftLevel(b, -1)
@@ -594,6 +605,7 @@ class EditorState(
 
     /** Puts [marker] around the selection (or toggles it off again). */
     fun wrap(b: EditBlock, marker: String) {
+        if (gone(b)) return
         checkpoint()
         val v = b.value
         val t = v.text
