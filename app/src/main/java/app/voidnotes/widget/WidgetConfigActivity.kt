@@ -70,6 +70,7 @@ class WidgetConfigActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
                 var content by remember { mutableStateOf(initial.content) }
                 var newButton by remember { mutableStateOf(initial.newButton) }
+                var opacity by remember { mutableStateOf(initial.opacity.toFloat()) }
                 Box(Modifier.fillMaxSize().background(c.background)) {
                     DotGrid(Modifier.fillMaxSize(), spacing = 22.dp)
                     Column(
@@ -118,12 +119,28 @@ class WidgetConfigActivity : ComponentActivity() {
                                 ),
                             )
                         }
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.surface)
+                                .border(1.dp, c.divider, RoundedCornerShape(18.dp)).padding(16.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Hintergrund", color = c.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                                Label("${opacity.toInt()} % deckend", color = c.text)
+                            }
+                            Text("0 % = durchsichtig, die Einträge bleiben lesbar", color = c.textMuted, style = MaterialTheme.typography.bodyMedium)
+                            androidx.compose.material3.Slider(
+                                value = opacity, onValueChange = { opacity = (it / 5f).toInt() * 5f }, valueRange = 0f..100f,
+                                colors = androidx.compose.material3.SliderDefaults.colors(
+                                    thumbColor = c.accent, activeTrackColor = c.accent, inactiveTrackColor = c.surfaceHigh,
+                                ),
+                            )
+                        }
                         Label("Die Größe passt sich an: flach nur Kopfzeile, groß als Liste, breit in zwei Spalten.")
                         Spacer(Modifier.height(8.dp))
                         Box(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(c.text)
                                 .clickable {
-                                    WidgetConfig.save(this@WidgetConfigActivity, widgetId, WidgetConfig(content, newButton))
+                                    WidgetConfig.save(this@WidgetConfigActivity, widgetId, WidgetConfig(content, newButton, opacity.toInt()))
                                     scope.launch {
                                         runCatching {
                                             val glanceId = GlanceAppWidgetManager(this@WidgetConfigActivity).getGlanceIdBy(widgetId)

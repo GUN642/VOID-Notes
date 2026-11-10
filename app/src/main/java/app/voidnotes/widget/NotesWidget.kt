@@ -56,7 +56,12 @@ enum class WidgetContent(val label: String, val header: String) {
 }
 
 /** Per-widget choice, stored in shared preferences. */
-data class WidgetConfig(val content: WidgetContent = WidgetContent.FAVORITES, val newButton: Boolean = true) {
+data class WidgetConfig(
+    val content: WidgetContent = WidgetContent.FAVORITES,
+    val newButton: Boolean = true,
+    /** Background opacity in percent (0 = fully transparent). */
+    val opacity: Int = 100,
+) {
     companion object {
         private fun prefs(context: Context) = context.getSharedPreferences("widgets", Context.MODE_PRIVATE)
 
@@ -65,11 +70,13 @@ data class WidgetConfig(val content: WidgetContent = WidgetContent.FAVORITES, va
             return WidgetConfig(
                 content = p.getString("content_$id", null)?.let { v -> WidgetContent.entries.firstOrNull { it.name == v } } ?: WidgetContent.FAVORITES,
                 newButton = p.getBoolean("new_$id", true),
+                opacity = p.getInt("alpha_$id", 100),
             )
         }
 
         fun save(context: Context, id: Int, c: WidgetConfig) {
-            prefs(context).edit().putString("content_$id", c.content.name).putBoolean("new_$id", c.newButton).apply()
+            prefs(context).edit().putString("content_$id", c.content.name).putBoolean("new_$id", c.newButton)
+                .putInt("alpha_$id", c.opacity).apply()
         }
     }
 }
@@ -146,36 +153,40 @@ private fun WidgetBody(config: WidgetConfig, pages: Map<String, Page>, p: Palett
     }
     // Scale with the widget: bigger text and rows on large widgets, two columns when wide.
     val big = size.width >= 260.dp && size.height >= 160.dp
-    val tiny = size.height < 100.dp
-    val columns = if (size.width >= 320.dp && size.height >= 150.dp) 2 else 1
-    val titleSize: TextUnit = if (big) 16.sp else 14.sp
-    val rowHeight: Dp = if (big) 48.dp else 40.dp
-    val pad = if (tiny) 8.dp else 12.dp
+    val tiny = size.height < 80.dp
+    val columns = if (size.width >= 300.dp) 2 else 1
+    val titleSize: TextUnit = if (big) 14.sp else 13.sp
+    val rowHeight: Dp = if (big) 36.dp else 32.dp
+    val pad = if (tiny) 8.dp else 10.dp
+    // Transparency: the background fades out, the entries stay readable.
+    val a = config.opacity.coerceIn(0, 100) / 100f
+    val bg = p.bg.copy(alpha = a)
+    val tile = p.surface.copy(alpha = 0.45f + 0.55f * a)
 
     Column(
-        GlanceModifier.fillMaxSize().background(ColorProvider(p.bg)).cornerRadius(24.dp).padding(pad),
+        GlanceModifier.fillMaxSize().background(ColorProvider(bg)).cornerRadius(20.dp).padding(pad),
     ) {
         // Header: logo, what is shown, new note
         Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(GlanceModifier.defaultWeight().clickable(actionStartActivity(homeIntent(context))), verticalAlignment = Alignment.CenterVertically) {
-                Text("VOID", style = TextStyle(color = ColorProvider(p.text), fontSize = if (big) 20.sp else 17.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace))
-                Text(".", style = TextStyle(color = ColorProvider(p.accent), fontSize = if (big) 20.sp else 17.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace))
+                Text("VOID", style = TextStyle(color = ColorProvider(p.text), fontSize = if (big) 16.sp else 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace))
+                Text(".", style = TextStyle(color = ColorProvider(p.accent), fontSize = if (big) 16.sp else 14.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace))
                 if (size.width >= 150.dp) {
                     Spacer(GlanceModifier.width(8.dp))
                     Text(
                         config.content.header.uppercase(),
-                        style = TextStyle(color = ColorProvider(p.muted), fontSize = 11.sp, fontFamily = FontFamily.Monospace),
+                        style = TextStyle(color = ColorProvider(p.muted), fontSize = 10.sp, fontFamily = FontFamily.Monospace),
                         maxLines = 1,
                     )
                 }
             }
             if (config.newButton) {
                 Box(
-                    GlanceModifier.size(if (tiny) 32.dp else 38.dp).cornerRadius(19.dp).background(ColorProvider(p.accent))
+                    GlanceModifier.size(28.dp).cornerRadius(14.dp).background(ColorProvider(p.accent))
                         .clickable(actionStartActivity(newIntent(context))),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("+", style = TextStyle(color = ColorProvider(p.onAccent), fontSize = 22.sp, fontWeight = FontWeight.Bold))
+                    Text("+", style = TextStyle(color = ColorProvider(p.onAccent), fontSize = 18.sp, fontWeight = FontWeight.Bold))
                 }
             }
         }
@@ -192,7 +203,7 @@ private fun WidgetBody(config: WidgetConfig, pages: Map<String, Page>, p: Palett
             }
             return@Column
         }
-        Spacer(GlanceModifier.height(8.dp))
+        Spacer(GlanceModifier.height(6.dp))
         if (list.isEmpty()) {
             Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
@@ -207,10 +218,10 @@ private fun WidgetBody(config: WidgetConfig, pages: Map<String, Page>, p: Palett
                 Column {
                     Row(GlanceModifier.fillMaxWidth()) {
                         row.forEachIndexed { i, page ->
-                            if (i > 0) Spacer(GlanceModifier.width(6.dp))
+                            if (i > 0) Spacer(GlanceModifier.width(4.dp))
                             Row(
-                                GlanceModifier.defaultWeight().height(rowHeight).cornerRadius(14.dp).background(ColorProvider(p.surface))
-                                    .padding(horizontal = 10.dp)
+                                GlanceModifier.defaultWeight().height(rowHeight).cornerRadius(10.dp).background(ColorProvider(tile))
+                                    .padding(horizontal = 8.dp)
                                     .clickable(actionStartActivity(openIntent(context, page))),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -218,7 +229,7 @@ private fun WidgetBody(config: WidgetConfig, pages: Map<String, Page>, p: Palett
                                     page.icon.ifBlank { "•" },
                                     style = TextStyle(color = ColorProvider(if (page.icon.isBlank()) p.accent else p.text), fontSize = titleSize),
                                 )
-                                Spacer(GlanceModifier.width(8.dp))
+                                Spacer(GlanceModifier.width(6.dp))
                                 Text(
                                     page.displayTitle,
                                     style = TextStyle(color = ColorProvider(p.text), fontSize = titleSize, fontWeight = FontWeight.Medium),
@@ -227,11 +238,11 @@ private fun WidgetBody(config: WidgetConfig, pages: Map<String, Page>, p: Palett
                             }
                         }
                         if (row.size < columns) {
-                            Spacer(GlanceModifier.width(6.dp))
+                            Spacer(GlanceModifier.width(4.dp))
                             Spacer(GlanceModifier.defaultWeight())
                         }
                     }
-                    Spacer(GlanceModifier.height(6.dp))
+                    Spacer(GlanceModifier.height(4.dp))
                 }
             }
         }
