@@ -225,6 +225,7 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onStop() {
         commitEditor()
+        viewModelScope.launch { app.voidnotes.widget.NotesWidget.refresh(getApplication()) }
         store.flush()
         sync?.stop()
         autoBackup(force = false)
@@ -690,6 +691,11 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
         intent ?: return
         when (intent.action) {
             Intent.ACTION_VIEW -> joinLink(intent.dataString)
+            app.voidnotes.widget.ACTION_OPEN_PAGE -> intent.getStringExtra(app.voidnotes.widget.EXTRA_PAGE)?.let { openPage(it) }
+            app.voidnotes.widget.ACTION_NEW_NOTE -> {
+                navigate(Screen.Home)
+                requestNewPage(null)
+            }
             Intent.ACTION_SEND -> {
                 val stream = intent.parcelable<Uri>(Intent.EXTRA_STREAM)
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)

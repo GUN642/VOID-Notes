@@ -16,6 +16,7 @@ Notizen im Nothing-Stil – aufgebaut wie Notion: Seiten mit Unterseiten, Blöck
   - Strg+B / I / E · Strg+Umschalt+S / H · Tab / Umschalt+Tab · Alt+↑/↓ · Strg+D · Strg+Z / Strg+Y · Strg+Enter · Umschalt+Enter · Strg+\ · Esc
 - **Teilen per Link & gemeinsam bearbeiten**: Seite → ⋮ → „Per Link teilen“. Live-Abgleich über eine eigene Firebase Realtime Database, Ende-zu-Ende verschlüsselt (Schlüssel nur im Link), Anhänge bis 3 MB
 - **Sicherung**: automatisch über die Google-Sicherung von Android (Seiten, Vorlagen, Einstellungen) und optional als komplette ZIP mit Anhängen in einen Ordner deiner Wahl, z. B. Google Drive
+- **Homescreen-Widget**: Favoriten oder zuletzt verwendete Notizen, Knopf für neue Notiz; passt sich der Größe an (flach, Liste, zwei Spalten)
 - **Updates in der App**: Einstellungen → Updates (lädt die neueste APK aus den GitHub-Releases)
 
 ## APK herunterladen

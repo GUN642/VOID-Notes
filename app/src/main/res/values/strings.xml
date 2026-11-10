@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">VOID Notes</string>
     <string name="share_label">In VOID Notes speichern</string>
+    <string name="widget_name">VOID Notes</string>
+    <string name="widget_desc">Favoriten oder zuletzt verwendete Notizen, mit Knopf für neue Notiz</string>
 </resources>

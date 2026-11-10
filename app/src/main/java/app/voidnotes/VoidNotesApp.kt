@@ -3,15 +3,26 @@ package app.voidnotes
 import android.app.Application
 import android.content.Context
 import android.os.Build
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class VoidNotesApp : Application() {
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
     override fun onCreate() {
         super.onCreate()
         CrashReporter.install(this)
+        // Keep home screen widgets in step with the notes.
+        val ctx = this
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default).launch {
+            app.voidnotes.data.Store.get(ctx).pages.drop(1).debounce(2_000).collect {
+                app.voidnotes.widget.NotesWidget.refresh(ctx)
+            }
+        }
     }
 }
 
