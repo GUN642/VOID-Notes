@@ -217,6 +217,11 @@ class EditorState(
         val oldNl = old.text.count { it == '\n' }
         val newNl = new.text.count { it == '\n' }
         if (b.type != BlockType.CODE && newNl > oldNl) {
+            // Some keyboards (e.g. Samsung while a word is still being composed) send the line break twice.
+            // A second one right after a split of this line (or into the new line) is an echo – ignore it.
+            if (newNl - oldNl == 1 && SystemClock.uptimeMillis() - lastSplitAt < 300 && b.id in lastSplitIds) {
+                return
+            }
             val sel = new.selection.start
             if (newNl - oldNl == 1 && new.selection.collapsed && sel > 0 && new.text[sel - 1] == '\n') {
                 enter(b, new.text.substring(0, sel - 1), new.text.substring(sel))
@@ -277,8 +282,13 @@ class EditorState(
         changed()
     }
 
+    private var lastSplitAt = 0L
+    private var lastSplitIds = emptySet<String>()
+
     private fun enter(b: EditBlock, before: String, after: String) {
         if (gone(b)) return
+        lastSplitAt = SystemClock.uptimeMillis()
+        lastSplitIds = setOf(b.id)
         slashFor = null
         val listish = b.type in setOf(BlockType.BULLET, BlockType.NUMBERED, BlockType.TODO, BlockType.TOGGLE, BlockType.QUOTE, BlockType.CALLOUT)
         // Enter on an empty list item ends the list (or steps out one level).
@@ -304,6 +314,7 @@ class EditorState(
             else -> Triple(BlockType.TEXT, b.level, i + 1)
         }
         val nb = EditBlock(Block(type = type, text = after, level = level))
+        lastSplitIds = setOf(b.id, nb.id)
         blocks.add(at, nb)
         requestFocus(nb.id, 0)
         changed()
