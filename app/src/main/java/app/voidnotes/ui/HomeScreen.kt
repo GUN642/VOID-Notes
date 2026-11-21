@@ -219,10 +219,10 @@ fun androidx.compose.foundation.lazy.LazyListScope.pageSections(
         if ("recent" !in settings.collapsedSections) {
             if (cards) {
                 item(key = "recent-cards") {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 4.dp)) {
                         items(recent, key = { it.id }) { p -> RecentCard(vm, p) }
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(6.dp))
                 }
             } else {
                 items(recent.take(5), key = { "r-" + it.id }) { p ->
@@ -379,19 +379,21 @@ private fun RecentCard(vm: NotesViewModel, page: Page) {
     val actions = LocalActions.current
     var menu by remember { mutableStateOf(false) }
     Box {
-        Column(
-            Modifier.width(148.dp).height(150.dp).clip(RoundedCornerShape(18.dp))
-                .border(1.dp, c.divider, RoundedCornerShape(18.dp))
+        Box(
+            Modifier.width(124.dp).height(78.dp).clip(RoundedCornerShape(14.dp))
+                .border(1.dp, c.divider, RoundedCornerShape(14.dp))
                 .background(c.surface)
                 .onRightClick { menu = true }
                 .combinedClickable(onClick = { vm.openPage(page.id) }, onLongClick = { menu = true }),
         ) {
-            Box(Modifier.fillMaxWidth().height(70.dp).background(c.surfaceHigh)) {
-                DotGrid(Modifier.fillMaxSize(), spacing = 12.dp, radius = 0.9.dp)
-                PageIcon(page, 32.dp, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 6.dp))
-            }
-            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                Text(page.displayTitle, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyLarge)
+            DotGrid(Modifier.fillMaxWidth().height(30.dp), spacing = 10.dp, radius = 0.8.dp)
+            Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                PageIcon(page, 20.dp)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    page.displayTitle, color = c.text, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 16.sp),
+                )
             }
         }
         VoidMenu(menu, { menu = false }, pageMenu(vm, actions, page, inEditor = false))
