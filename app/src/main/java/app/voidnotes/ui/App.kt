@@ -243,6 +243,7 @@ private fun StartupDialogs(vm: NotesViewModel) {
 private fun Dialogs(vm: NotesViewModel, pages: Map<String, Page>, templates: List<Template>) {
     val dismiss = { vm.dialog = null }
     val actions = LocalActions.current
+    vm.incoming?.let { ShareTargetDialog(vm, it, pages) }
     vm.newPageParent?.let { parent ->
         TemplatePickerDialog(
             templates, onDismiss = { vm.newPageParent = null },

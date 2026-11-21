@@ -392,3 +392,56 @@ fun LinkOpeningRow() {
         Pill("Links in App öffnen erlauben", selected = true, onClick = { launcher.openLinkSettings() })
     }
 }
+
+/** Where should something shared from another app go? A new note or one of the existing pages. */
+@Composable
+fun ShareTargetDialog(vm: NotesViewModel, incoming: Incoming, pages: Map<String, Page>) {
+    val c = VoidTheme.colors
+    var filter by remember { mutableStateOf("") }
+    val candidates = remember(pages, filter) {
+        pages.values.filter { !it.inTrash }
+            .filter { filter.isBlank() || it.displayTitle.contains(filter, ignoreCase = true) }
+            .sortedWith(compareByDescending<Page> { it.favorite }.thenByDescending { maxOf(it.opened, it.updated) })
+            .take(60)
+    }
+    VoidDialog("Speichern in", onDismiss = { vm.incoming = null }, confirmText = null, onConfirm = {}) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Label(incoming.summary, color = c.text)
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.accent)
+                    .clickable { vm.receiveShare(null) }.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.Add, null, Modifier.size(20.dp), tint = c.onAccent)
+                Spacer(Modifier.width(10.dp))
+                Text("Neue Notiz", color = c.onAccent, style = MaterialTheme.typography.bodyLarge)
+            }
+            Label("Oder zu einer Seite hinzufügen")
+            BasicTextField(
+                filter, { filter = it }, singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = c.text),
+                cursorBrush = SolidColor(c.accent),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.surfaceHigh).padding(12.dp),
+                decorationBox = { inner -> Box { if (filter.isEmpty()) Text("Seite suchen …", color = c.textMuted); inner() } },
+            )
+            Column(Modifier.heightIn(max = 340.dp).verticalScroll(rememberScrollState())) {
+                if (candidates.isEmpty()) Text("Keine passende Seite", color = c.textMuted, modifier = Modifier.padding(10.dp))
+                candidates.forEach { p ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { vm.receiveShare(p.id) }.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PageIcon(p, 22.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(p.displayTitle, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val path = vm.ancestors(p.id).joinToString(" / ") { it.displayTitle }
+                            if (path.isNotEmpty()) Text(path, color = c.textMuted, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        if (p.favorite) Icon(androidx.compose.material.icons.Icons.Outlined.Star, null, Modifier.size(16.dp), tint = c.accent)
+                    }
+                }
+            }
+        }
+    }
+}

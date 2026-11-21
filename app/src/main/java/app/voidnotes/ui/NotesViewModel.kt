@@ -80,6 +80,15 @@ sealed interface UiEvent {
     data class OpenUrl(val url: String) : UiEvent
 }
 
+/** Files and/or text shared from another app. */
+data class Incoming(val uris: List<Uri>, val text: String?, val subject: String?) {
+    val summary: String get() = when {
+        uris.size > 1 -> "${uris.size} Dateien"
+        uris.size == 1 -> "1 Datei" + if (text != null) " und Text" else ""
+        else -> "„" + text.orEmpty().replace('\n', ' ').take(80) + if ((text?.length ?: 0) > 80) "…“" else "“"
+    }
+}
+
 /** A file to share, print or show, prepared in the background. */
 data class Prepared(val file: File, val mime: String, val pages: Int = 0)
 
@@ -699,9 +708,8 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
                 val stream = intent.parcelable<Uri>(Intent.EXTRA_STREAM)
                 val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                 val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
-                if (stream != null) attach(listOf(stream), forcePage = true)
-                else if (text != null && ShareInfo.parse(text) != null) joinLink(text)
-                else if (!text.isNullOrBlank()) newPageFromText(subject, text)
+                if (stream == null && text != null && ShareInfo.parse(text) != null) joinLink(text)
+                else if (stream != null || !text.isNullOrBlank()) incoming = Incoming(listOfNotNull(stream), text?.takeIf { it.isNotBlank() }, subject)
             }
             Intent.ACTION_SEND_MULTIPLE -> {
                 val list = if (Build.VERSION.SDK_INT >= 33) {
@@ -709,9 +717,50 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     @Suppress("DEPRECATION") intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
                 }
-                if (!list.isNullOrEmpty()) attach(list, forcePage = true)
+                if (!list.isNullOrEmpty()) {
+                    incoming = Incoming(list, intent.getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }, intent.getStringExtra(Intent.EXTRA_SUBJECT))
+                }
             }
         }
+    }
+
+    /** Something shared from another app, waiting for the user to pick where it goes. */
+    var incoming by mutableStateOf<Incoming?>(null)
+
+    /** Puts what was shared into [pageId], or into a new page when null. */
+    fun receiveShare(pageId: String?) {
+        val share = incoming ?: return
+        incoming = null
+        if (pageId == null) {
+            if (share.uris.isEmpty()) {
+                newPageFromText(share.subject, share.text.orEmpty())
+            } else if (share.text == null) {
+                attach(share.uris, forcePage = true)
+            } else {
+                // New page with the files; shared text (e.g. a caption) goes on top.
+                val page = Page(
+                    title = share.subject ?: "Geteilt",
+                    blocks = share.text?.let { MarkdownIO.import(it, extractTitle = false).second }.orEmpty() + Block(),
+                    order = (children(null).maxOfOrNull { it.order } ?: 0L) + 1,
+                )
+                store.put(page)
+                navigate(Screen.PageScreen(page.id))
+                attach(share.uris)
+            }
+            return
+        }
+        openPage(pageId)
+        val e = editor ?: return
+        share.text?.let { t ->
+            val blocks = buildList {
+                share.subject?.takeIf { it.isNotBlank() && !t.contains(it) }?.let { add(Block(text = "**$it**")) }
+                addAll(MarkdownIO.import(t, extractTitle = false).second)
+            }
+            e.insertBlocks(blocks, afterId = null)
+            commitEditor()
+        }
+        if (share.uris.isNotEmpty()) attach(share.uris)
+        message("Zu „${store.page(pageId)?.displayTitle}“ hinzugefügt")
     }
 
     private fun newPageFromText(subject: String?, text: String) {
