@@ -306,9 +306,9 @@ fun TreeRow(
     var menu by remember { mutableStateOf(false) }
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
-    val rowH: Dp = if (compact) 38.dp else 58.dp
-    val shape = RoundedCornerShape(if (compact) 12.dp else 18.dp)
-    Box(Modifier.padding(vertical = if (compact) 0.dp else 3.dp)) {
+    val rowH: Dp = if (compact) 38.dp else 44.dp
+    val shape = RoundedCornerShape(if (compact) 12.dp else 14.dp)
+    Box(Modifier.padding(vertical = if (compact) 0.dp else 2.dp)) {
         Row(
             Modifier.fillMaxWidth().height(rowH)
                 // Nested pages are indented outside the card, so the levels stay visible.
@@ -331,7 +331,7 @@ fun TreeRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.size(if (compact) 26.dp else 36.dp).clip(CircleShape).clickable(enabled = true) {
+                Modifier.size(if (compact) 26.dp else 32.dp).clip(CircleShape).clickable(enabled = true) {
                     if (hasChildren) vm.toggleExpanded(page.id) else vm.requestNewPage(page.id)
                 },
                 contentAlignment = Alignment.Center,
@@ -339,7 +339,7 @@ fun TreeRow(
                 Icon(
                     if (expanded && hasChildren) Icons.Outlined.KeyboardArrowDown else Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                     if (expanded) "Zuklappen" else "Aufklappen",
-                    Modifier.size(if (compact) 18.dp else 24.dp),
+                    Modifier.size(if (compact) 18.dp else 20.dp),
                     tint = when {
                         hasChildren && expanded -> c.accent
                         hasChildren -> c.text
@@ -348,22 +348,22 @@ fun TreeRow(
                 )
             }
             Spacer(Modifier.width(if (compact) 2.dp else 6.dp))
-            PageIcon(page, if (compact) 20.dp else 28.dp)
+            PageIcon(page, if (compact) 20.dp else 22.dp)
             Spacer(Modifier.width(if (compact) 8.dp else 14.dp))
             Text(
                 page.displayTitle,
                 color = if (page.title.isBlank()) c.textMuted else c.text,
-                style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
+                style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             if (!compact || hovered || selected) {
-                Box(Modifier.size(if (compact) 28.dp else 40.dp).clip(CircleShape).clickable { menu = true }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(if (compact) 28.dp else 36.dp).clip(CircleShape).clickable { menu = true }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Outlined.MoreHoriz, "Menü", Modifier.size(if (compact) 18.dp else 22.dp), tint = c.accent)
                 }
                 if (showAdd) {
-                    Box(Modifier.size(if (compact) 28.dp else 40.dp).clip(CircleShape).clickable { vm.requestNewPage(page.id) }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Add, "Unterseite", Modifier.size(if (compact) 18.dp else 24.dp), tint = c.accent)
+                    Box(Modifier.size(if (compact) 28.dp else 36.dp).clip(CircleShape).clickable { vm.requestNewPage(page.id) }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.Add, "Unterseite", Modifier.size(if (compact) 18.dp else 20.dp), tint = c.accent)
                     }
                 }
             }
