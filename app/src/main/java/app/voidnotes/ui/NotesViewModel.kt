@@ -77,13 +77,12 @@ sealed interface Dialog {
 
 sealed interface UiEvent {
     data class Message(val text: String) : UiEvent
-    data class Install(val file: File) : UiEvent
+    data class OpenUrl(val url: String) : UiEvent
 }
 
 /** A file to share, print or show, prepared in the background. */
 data class Prepared(val file: File, val mime: String, val pages: Int = 0)
 
-data class Download(val version: String, val done: Long, val total: Long)
 
 class NotesViewModel(app: Application) : AndroidViewModel(app) {
     val store = Store.get(app)
@@ -876,10 +875,6 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
     var checkingUpdate by mutableStateOf(false)
         private set
     var showUpdateDialog by mutableStateOf(false)
-    var download by mutableStateOf<Download?>(null)
-        private set
-    private var downloadJob: Job? = null
-
     fun checkForUpdates(manual: Boolean) {
         if (checkingUpdate) return
         checkingUpdate = true
@@ -905,37 +900,15 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Opens the APK download in the browser. The app itself does not install anything (no permission
+     * to install apps), which keeps Google Play Protect calm; Android then installs the downloaded file.
+     */
     fun downloadUpdate(release: Release) {
         showUpdateDialog = false
-        val url = release.apkUrl ?: return message("Für diese Version gibt es keine APK")
-        if (downloadJob?.isActive == true) return
-        download = Download(release.version, 0, release.apkSize)
-        downloadJob = viewModelScope.launch(Dispatchers.IO) {
-            val self = coroutineContext.job
-            val dir = File(getApplication<Application>().cacheDir, "updates")
-            val file = File(dir, "VOID-Notes-${release.version}.apk")
-            var last = 0L
-            try {
-                dir.listFiles()?.forEach { it.delete() }
-                Updater.download(url, file, { done, total ->
-                    val now = System.currentTimeMillis()
-                    if (now - last > 120) {
-                        last = now
-                        download = Download(release.version, done, if (total > 0) total else release.apkSize)
-                    }
-                }, { !self.isActive })
-                download = null
-                _events.trySend(UiEvent.Install(file))
-            } catch (e: Throwable) {
-                download = null
-                message(if (!isActive) "Update abgebrochen" else "Update fehlgeschlagen: ${e.message}")
-            }
-        }
-    }
-
-    fun cancelDownload() {
-        downloadJob?.cancel()
-        download = null
+        val url = release.apkUrl ?: "https://github.com/GUN642/VOID-Notes/releases"
+        _events.trySend(UiEvent.OpenUrl(url))
+        message("Download von Version ${release.version} startet im Browser – danach die Datei antippen")
     }
 }
 

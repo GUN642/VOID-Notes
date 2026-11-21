@@ -17,7 +17,7 @@ Notizen im Nothing-Stil – aufgebaut wie Notion: Seiten mit Unterseiten, Blöck
 - **Teilen per Link & gemeinsam bearbeiten**: Seite → ⋮ → „Per Link teilen“. Live-Abgleich über eine eigene Firebase Realtime Database, Ende-zu-Ende verschlüsselt (Schlüssel nur im Link), Anhänge bis 3 MB
 - **Sicherung**: automatisch über die Google-Sicherung von Android (Seiten, Vorlagen, Einstellungen) und optional als komplette ZIP mit Anhängen in einen Ordner deiner Wahl, z. B. Google Drive
 - **Homescreen-Widget**: Favoriten oder zuletzt verwendete Notizen, Knopf für neue Notiz; passt sich der Größe an (flach, Liste, zwei Spalten)
-- **Updates in der App**: Einstellungen → Updates (lädt die neueste APK aus den GitHub-Releases)
+- **Updates in der App**: Einstellungen → Updates zeigt neue Versionen und den Changelog; der Download läuft über den Browser (die App selbst braucht keine Berechtigung zum Installieren)
 
 ## APK herunterladen
 Jeder Push baut automatisch eine APK – zu finden unter **Releases** bzw. im Actions-Lauf als Artifact.

@@ -226,7 +226,7 @@ fun MovePageDialog(vm: NotesViewModel, pageId: String, pages: Map<String, Page>,
 @Composable
 fun UpdateDialog(release: Release, onDismiss: () -> Unit, onUpdate: () -> Unit) {
     val c = VoidTheme.colors
-    VoidDialog("Update", onDismiss, "Aktualisieren", onUpdate, dismissText = "Später") {
+    VoidDialog("Update", onDismiss, "Herunterladen", onUpdate, dismissText = "Später") {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Text("Version ${release.version} ist verfügbar (installiert: ${BuildConfig.VERSION_NAME}).", color = c.text)
             if (release.notes.isNotBlank()) {

@@ -112,17 +112,4 @@ class Launcher(private val context: Context) {
         pm.print("VOID Notes – $jobName", PdfPrintAdapter(pdf, jobName, pages), attrs)
     }
 
-    /** Hands a downloaded update APK to the system installer. */
-    fun installApk(apk: File) {
-        if (!context.packageManager.canRequestPackageInstalls()) {
-            toast("Bitte \"Unbekannte Apps installieren\" für VOID Notes erlauben und dann erneut auf Aktualisieren tippen")
-            start(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
-            return
-        }
-        start(
-            Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uriFor(apk), "application/vnd.android.package-archive")
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
-        )
-    }
 }

@@ -137,7 +137,7 @@ fun VoidNotesRoot(vm: NotesViewModel) {
                     snackbar.currentSnackbarData?.dismiss()
                     snackbar.showSnackbar(e.text)
                 }
-                is UiEvent.Install -> launcher.installApk(e.file)
+                is UiEvent.OpenUrl -> launcher.openUrl(e.url)
             }
         }
     }

@@ -581,21 +581,12 @@ private fun UpdateSection(vm: NotesViewModel, s: AppSettings) {
         if (vm.checkingUpdate) CircularProgressIndicator(Modifier.size(22.dp), color = c.accent, strokeWidth = 2.dp)
     }
     Spacer(Modifier.height(12.dp))
-    val dl = vm.download
-    if (dl != null) {
-        val f = if (dl.total > 0) (dl.done.toFloat() / dl.total).coerceIn(0f, 1f) else 0f
-        DotBar(f, Modifier.fillMaxWidth().height(10.dp))
-        Spacer(Modifier.height(4.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Label("${formatSize(dl.done)} / ${formatSize(dl.total)}", Modifier.weight(1f))
-            TextButton(onClick = { vm.cancelDownload() }) { Text("ABBRECHEN", style = MaterialTheme.typography.labelLarge, color = c.accent) }
-        }
-    } else {
-        FlowRow2 {
-            if (update != null) Pill("Auf ${update.version} aktualisieren", selected = true, onClick = { vm.downloadUpdate(update) })
-            Pill("Nach Updates suchen", selected = update == null, onClick = { vm.checkForUpdates(manual = true) })
-        }
+    FlowRow2 {
+        if (update != null) Pill("Version ${update.version} herunterladen", selected = true, onClick = { vm.downloadUpdate(update) })
+        Pill("Nach Updates suchen", selected = update == null, onClick = { vm.checkForUpdates(manual = true) })
     }
+    Spacer(Modifier.height(8.dp))
+    Hint("Neue Versionen werden im Browser heruntergeladen. Danach die Datei in der Benachrichtigung antippen und installieren – deine Notizen bleiben erhalten.")
     Spacer(Modifier.height(8.dp))
     CardDivider()
     Toggle("Beim Start prüfen", "Beim Öffnen der App nach neuen Versionen suchen", s.autoUpdateCheck) { v -> vm.editSettings { it.copy(autoUpdateCheck = v) } }
